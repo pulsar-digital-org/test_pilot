@@ -26,6 +26,7 @@
   "author": "Pulsar Digital s.r.o",
   "devDependencies": {
     "@biomejs/biome": "2.2.3",
+    "@types/node": "^24.3.1",
     "vitest": "^3.2.4"
   },
   "dependencies": {
