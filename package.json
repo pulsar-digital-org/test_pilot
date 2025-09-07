@@ -1,0 +1,23 @@
+{
+  "name": "test_pilot",
+  "version": "0.0.1",
+  "description": "Smart test generation using AI.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "biome lint",
+    "lint:fix": "biome format --write",
+    "test": "vitest"
+  },
+  "keywords": [
+    "test",
+    "javascript",
+    "typescript",
+    "testing",
+    "AI"
+  ],
+  "author": "Pulsar Digital s.r.o",
+  "devDependencies": {
+    "@biomejs/biome": "2.2.3",
+    "vitest": "^3.2.4"
+  }
+}
