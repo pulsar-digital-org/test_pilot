@@ -7,13 +7,26 @@ settings:
 importers:
 
   .:
+    dependencies:
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.0
+      inquirer:
+        specifier: ^12.9.4
+        version: 12.9.4
+      tsx:
+        specifier: ^4.20.5
+        version: 4.20.5
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
     devDependencies:
       '@biomejs/biome':
         specifier: 2.2.3
         version: 2.2.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4
+        version: 3.2.4(tsx@4.20.5)
 
 packages:
 
@@ -226,6 +239,136 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@inquirer/checkbox@4.2.2':
+    resolution: {integrity: sha512-E+KExNurKcUJJdxmjglTl141EwxWyAHplvsYJQgSwXf8qiNWkTxTuCCqmhFEmbIXd4zLaGMfQFJ6WrZ7fSeV3g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/confirm@5.1.16':
+    resolution: {integrity: sha512-j1a5VstaK5KQy8Mu8cHmuQvN1Zc62TbLhjJxwHvKPPKEoowSF6h/0UdOpA9DNdWZ+9Inq73+puRq1df6OJ8Sag==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/core@10.2.0':
+    resolution: {integrity: sha512-NyDSjPqhSvpZEMZrLCYUquWNl+XC/moEcVFqS55IEYIYsY0a1cUCevSqk7ctOlnm/RaSBU5psFryNlxcmGrjaA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/editor@4.2.18':
+    resolution: {integrity: sha512-yeQN3AXjCm7+Hmq5L6Dm2wEDeBRdAZuyZ4I7tWSSanbxDzqM0KqzoDbKM7p4ebllAYdoQuPJS6N71/3L281i6w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/expand@4.0.18':
+    resolution: {integrity: sha512-xUjteYtavH7HwDMzq4Cn2X4Qsh5NozoDHCJTdoXg9HfZ4w3R6mxV1B9tL7DGJX2eq/zqtsFjhm0/RJIMGlh3ag==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/external-editor@1.0.1':
+    resolution: {integrity: sha512-Oau4yL24d2B5IL4ma4UpbQigkVhzPDXLoqy1ggK4gnHg/stmkffJE4oOXHXF3uz0UEpywG68KcyXsyYpA1Re/Q==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/figures@1.0.13':
+    resolution: {integrity: sha512-lGPVU3yO9ZNqA7vTYz26jny41lE7yoQansmqdMLBEfqaGsmdg7V3W9mK9Pvb5IL4EVZ9GnSDGMO/cJXud5dMaw==}
+    engines: {node: '>=18'}
+
+  '@inquirer/input@4.2.2':
+    resolution: {integrity: sha512-hqOvBZj/MhQCpHUuD3MVq18SSoDNHy7wEnQ8mtvs71K8OPZVXJinOzcvQna33dNYLYE4LkA9BlhAhK6MJcsVbw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/number@3.0.18':
+    resolution: {integrity: sha512-7exgBm52WXZRczsydCVftozFTrrwbG5ySE0GqUd2zLNSBXyIucs2Wnm7ZKLe/aUu6NUg9dg7Q80QIHCdZJiY4A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/password@4.0.18':
+    resolution: {integrity: sha512-zXvzAGxPQTNk/SbT3carAD4Iqi6A2JS2qtcqQjsL22uvD+JfQzUrDEtPjLL7PLn8zlSNyPdY02IiQjzoL9TStA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/prompts@7.8.4':
+    resolution: {integrity: sha512-MuxVZ1en1g5oGamXV3DWP89GEkdD54alcfhHd7InUW5BifAdKQEK9SLFa/5hlWbvuhMPlobF0WAx7Okq988Jxg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/rawlist@4.1.6':
+    resolution: {integrity: sha512-KOZqa3QNr3f0pMnufzL7K+nweFFCCBs6LCXZzXDrVGTyssjLeudn5ySktZYv1XiSqobyHRYYK0c6QsOxJEhXKA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/search@3.1.1':
+    resolution: {integrity: sha512-TkMUY+A2p2EYVY3GCTItYGvqT6LiLzHBnqsU1rJbrpXUijFfM6zvUx0R4civofVwFCmJZcKqOVwwWAjplKkhxA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/select@4.3.2':
+    resolution: {integrity: sha512-nwous24r31M+WyDEHV+qckXkepvihxhnyIaod2MG7eCE6G0Zm/HUF6jgN8GXgf4U7AU6SLseKdanY195cwvU6w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  '@inquirer/type@3.0.8':
+    resolution: {integrity: sha512-lg9Whz8onIHRthWaN1Q9EGLa/0LFJjyM8mEUbL1eTi6yMGvBf8gvyDLtxSXztQsxMvhxxNpJYrwa1YHdq+w4Jw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
@@ -372,6 +515,18 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
+  ansi-escapes@4.3.2:
+    resolution: {integrity: sha512-gKXj5ALrKWQLsYG9jlTRmR/xKluxHV+Z9QEwNIgCfM1/uwPMCuzVVnh5mwTd+OuBZcwSIMbqssNWRm1lE51QaQ==}
+    engines: {node: '>=8'}
+
+  ansi-regex@5.0.1:
+    resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
+    engines: {node: '>=8'}
+
+  ansi-styles@4.3.0:
+    resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
+    engines: {node: '>=8'}
+
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
@@ -384,9 +539,27 @@ packages:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
     engines: {node: '>=18'}
 
+  chardet@2.1.0:
+    resolution: {integrity: sha512-bNFETTG/pM5ryzQ9Ad0lJOTa6HWD/YsScAR3EnCPZRPlQh77JocYktSHOUHelyhm8IARL+o4c4F1bP5KVOjiRA==}
+
   check-error@2.1.1:
     resolution: {integrity: sha512-OAlb+T7V4Op9OwdkjmguYRqncdlx5JiofwOAUkmTF+jNdHwzTaTs4sRAGpzLF3oOz5xAyDGrPgeIDFQmDOTiJw==}
     engines: {node: '>= 16'}
+
+  cli-width@4.1.0:
+    resolution: {integrity: sha512-ouuZd4/dm2Sw5Gmqy6bGyNNNe1qt9RpmxveLSO7KcgsTnU7RXfsw+/bukWGo1abgBiMAic068rclZsO4IWmmxQ==}
+    engines: {node: '>= 12'}
+
+  color-convert@2.0.1:
+    resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
+    engines: {node: '>=7.0.0'}
+
+  color-name@1.1.4:
+    resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  commander@14.0.0:
+    resolution: {integrity: sha512-2uM9rYjPvyq39NwLRqaiLtWHyDC1FvryJDa2ATTVims5YAS4PupsEQsDvP14FqhFr0P49CYDugi59xaxJlTXRA==}
+    engines: {node: '>=20'}
 
   debug@4.4.1:
     resolution: {integrity: sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==}
@@ -400,6 +573,9 @@ packages:
   deep-eql@5.0.2:
     resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
     engines: {node: '>=6'}
+
+  emoji-regex@8.0.0:
+    resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
 
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
@@ -430,6 +606,26 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  get-tsconfig@4.10.1:
+    resolution: {integrity: sha512-auHyJ4AgMz7vgS8Hp3N6HXSmlMdUyhSUrfBF16w153rxtLIEOE+HGqaBppczZvnHLqQJfiHotCYpNhl0lUROFQ==}
+
+  iconv-lite@0.6.3:
+    resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
+    engines: {node: '>=0.10.0'}
+
+  inquirer@12.9.4:
+    resolution: {integrity: sha512-5bV3LOgLtMAiJq1QpaUddfRrvaX59wiMYppS7z2jNRSQ64acI0yqx7WMxWhgymenSXOyD657g9tlsTjqGYM8sg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  is-fullwidth-code-point@3.0.0:
+    resolution: {integrity: sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==}
+    engines: {node: '>=8'}
+
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
 
@@ -441,6 +637,10 @@ packages:
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  mute-stream@2.0.0:
+    resolution: {integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==}
+    engines: {node: ^18.17.0 || >=20.5.0}
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -465,13 +665,30 @@ packages:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
+  resolve-pkg-maps@1.0.0:
+    resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
+
   rollup@4.50.1:
     resolution: {integrity: sha512-78E9voJHwnXQMiQdiqswVLZwJIzdBKJ1GdI5Zx6XwoFKUIk09/sSrr+05QFzvYb8q6Y9pPV45zzDuYa3907TZA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  run-async@4.0.6:
+    resolution: {integrity: sha512-IoDlSLTs3Yq593mb3ZoKWKXMNu3UpObxhgA/Xuid5p4bbfi2jdY1Hj0m1K+0/tEuQTxIGMhQDqGjKb7RuxGpAQ==}
+    engines: {node: '>=0.12.0'}
+
+  rxjs@7.8.2:
+    resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
+
+  safer-buffer@2.1.2:
+    resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
+
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
+
+  signal-exit@4.1.0:
+    resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
+    engines: {node: '>=14'}
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -482,6 +699,14 @@ packages:
 
   std-env@3.9.0:
     resolution: {integrity: sha512-UGvjygr6F6tpH7o2qyqR6QYpwraIjKSdtzyBdyytFOHmPZY917kwdwLG0RbOjWOnKmnm3PeHjaoLLMie7kPLQw==}
+
+  string-width@4.2.3:
+    resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
+    engines: {node: '>=8'}
+
+  strip-ansi@6.0.1:
+    resolution: {integrity: sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==}
+    engines: {node: '>=8'}
 
   strip-literal@3.0.0:
     resolution: {integrity: sha512-TcccoMhJOM3OebGhSBEmp3UZ2SfDMZUEBdRA/9ynfLi8yYajyWX3JiXArcJt4Umh4vISpspkQIY8ZZoCqjbviA==}
@@ -507,6 +732,23 @@ packages:
   tinyspy@4.0.3:
     resolution: {integrity: sha512-t2T/WLB2WRgZ9EpE4jgPJ9w+i66UZfDc8wHh0xrwiRNN+UwH98GIJkTeZqX9rg0i0ptwzqW+uYeIF0T4F8LR7A==}
     engines: {node: '>=14.0.0'}
+
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
+  tsx@4.20.5:
+    resolution: {integrity: sha512-+wKjMNU9w/EaQayHXb7WA7ZaHY6hN8WgfvHNQ3t1PnU91/7O8TcTnIhCDYTZwnt8JsO9IBqZ30Ln1r7pPF52Aw==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
+  type-fest@0.21.3:
+    resolution: {integrity: sha512-t0rzBq87m3fVcduHDUFhKmyyX+9eo6WQjZvf51Ea/M0Q7+T374Jp1aUiyUl0GKxp8M/OETVHSDvmkyPgvX+X2w==}
+    engines: {node: '>=10'}
+
+  typescript@5.9.2:
+    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
+    engines: {node: '>=14.17'}
+    hasBin: true
 
   vite-node@3.2.4:
     resolution: {integrity: sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==}
@@ -585,6 +827,14 @@ packages:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wrap-ansi@6.2.0:
+    resolution: {integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==}
+    engines: {node: '>=8'}
+
+  yoctocolors-cjs@2.1.3:
+    resolution: {integrity: sha512-U/PBtDf35ff0D8X8D0jfdzHYEPFxAI7jJlxZXwCSez5M3190m+QobIfh+sWDWSHMCWWJN2AWamkegn6vr6YBTw==}
+    engines: {node: '>=18'}
 
 snapshots:
 
@@ -701,6 +951,101 @@ snapshots:
   '@esbuild/win32-x64@0.25.9':
     optional: true
 
+  '@inquirer/checkbox@4.2.2':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/figures': 1.0.13
+      '@inquirer/type': 3.0.8
+      ansi-escapes: 4.3.2
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/confirm@5.1.16':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+
+  '@inquirer/core@10.2.0':
+    dependencies:
+      '@inquirer/figures': 1.0.13
+      '@inquirer/type': 3.0.8
+      ansi-escapes: 4.3.2
+      cli-width: 4.1.0
+      mute-stream: 2.0.0
+      signal-exit: 4.1.0
+      wrap-ansi: 6.2.0
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/editor@4.2.18':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/external-editor': 1.0.1
+      '@inquirer/type': 3.0.8
+
+  '@inquirer/expand@4.0.18':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/external-editor@1.0.1':
+    dependencies:
+      chardet: 2.1.0
+      iconv-lite: 0.6.3
+
+  '@inquirer/figures@1.0.13': {}
+
+  '@inquirer/input@4.2.2':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+
+  '@inquirer/number@3.0.18':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+
+  '@inquirer/password@4.0.18':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+      ansi-escapes: 4.3.2
+
+  '@inquirer/prompts@7.8.4':
+    dependencies:
+      '@inquirer/checkbox': 4.2.2
+      '@inquirer/confirm': 5.1.16
+      '@inquirer/editor': 4.2.18
+      '@inquirer/expand': 4.0.18
+      '@inquirer/input': 4.2.2
+      '@inquirer/number': 3.0.18
+      '@inquirer/password': 4.0.18
+      '@inquirer/rawlist': 4.1.6
+      '@inquirer/search': 3.1.1
+      '@inquirer/select': 4.3.2
+
+  '@inquirer/rawlist@4.1.6':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/type': 3.0.8
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/search@3.1.1':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/figures': 1.0.13
+      '@inquirer/type': 3.0.8
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/select@4.3.2':
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/figures': 1.0.13
+      '@inquirer/type': 3.0.8
+      ansi-escapes: 4.3.2
+      yoctocolors-cjs: 2.1.3
+
+  '@inquirer/type@3.0.8': {}
+
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@rollup/rollup-android-arm-eabi@4.50.1':
@@ -782,13 +1127,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@7.1.4)':
+  '@vitest/mocker@3.2.4(vite@7.1.4(tsx@4.20.5))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.18
     optionalDependencies:
-      vite: 7.1.4
+      vite: 7.1.4(tsx@4.20.5)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -816,6 +1161,16 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  ansi-escapes@4.3.2:
+    dependencies:
+      type-fest: 0.21.3
+
+  ansi-regex@5.0.1: {}
+
+  ansi-styles@4.3.0:
+    dependencies:
+      color-convert: 2.0.1
+
   assertion-error@2.0.1: {}
 
   cac@6.7.14: {}
@@ -828,13 +1183,27 @@ snapshots:
       loupe: 3.2.1
       pathval: 2.0.1
 
+  chardet@2.1.0: {}
+
   check-error@2.1.1: {}
+
+  cli-width@4.1.0: {}
+
+  color-convert@2.0.1:
+    dependencies:
+      color-name: 1.1.4
+
+  color-name@1.1.4: {}
+
+  commander@14.0.0: {}
 
   debug@4.4.1:
     dependencies:
       ms: 2.1.3
 
   deep-eql@5.0.2: {}
+
+  emoji-regex@8.0.0: {}
 
   es-module-lexer@1.7.0: {}
 
@@ -880,6 +1249,26 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  get-tsconfig@4.10.1:
+    dependencies:
+      resolve-pkg-maps: 1.0.0
+
+  iconv-lite@0.6.3:
+    dependencies:
+      safer-buffer: 2.1.2
+
+  inquirer@12.9.4:
+    dependencies:
+      '@inquirer/core': 10.2.0
+      '@inquirer/prompts': 7.8.4
+      '@inquirer/type': 3.0.8
+      ansi-escapes: 4.3.2
+      mute-stream: 2.0.0
+      run-async: 4.0.6
+      rxjs: 7.8.2
+
+  is-fullwidth-code-point@3.0.0: {}
+
   js-tokens@9.0.1: {}
 
   loupe@3.2.1: {}
@@ -889,6 +1278,8 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   ms@2.1.3: {}
+
+  mute-stream@2.0.0: {}
 
   nanoid@3.3.11: {}
 
@@ -905,6 +1296,8 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  resolve-pkg-maps@1.0.0: {}
 
   rollup@4.50.1:
     dependencies:
@@ -933,13 +1326,33 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.50.1
       fsevents: 2.3.3
 
+  run-async@4.0.6: {}
+
+  rxjs@7.8.2:
+    dependencies:
+      tslib: 2.8.1
+
+  safer-buffer@2.1.2: {}
+
   siginfo@2.0.0: {}
+
+  signal-exit@4.1.0: {}
 
   source-map-js@1.2.1: {}
 
   stackback@0.0.2: {}
 
   std-env@3.9.0: {}
+
+  string-width@4.2.3:
+    dependencies:
+      emoji-regex: 8.0.0
+      is-fullwidth-code-point: 3.0.0
+      strip-ansi: 6.0.1
+
+  strip-ansi@6.0.1:
+    dependencies:
+      ansi-regex: 5.0.1
 
   strip-literal@3.0.0:
     dependencies:
@@ -960,13 +1373,26 @@ snapshots:
 
   tinyspy@4.0.3: {}
 
-  vite-node@3.2.4:
+  tslib@2.8.1: {}
+
+  tsx@4.20.5:
+    dependencies:
+      esbuild: 0.25.9
+      get-tsconfig: 4.10.1
+    optionalDependencies:
+      fsevents: 2.3.3
+
+  type-fest@0.21.3: {}
+
+  typescript@5.9.2: {}
+
+  vite-node@3.2.4(tsx@4.20.5):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.1.4
+      vite: 7.1.4(tsx@4.20.5)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -981,7 +1407,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@7.1.4:
+  vite@7.1.4(tsx@4.20.5):
     dependencies:
       esbuild: 0.25.9
       fdir: 6.5.0(picomatch@4.0.3)
@@ -991,12 +1417,13 @@ snapshots:
       tinyglobby: 0.2.15
     optionalDependencies:
       fsevents: 2.3.3
+      tsx: 4.20.5
 
-  vitest@3.2.4:
+  vitest@3.2.4(tsx@4.20.5):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@7.1.4)
+      '@vitest/mocker': 3.2.4(vite@7.1.4(tsx@4.20.5))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -1014,8 +1441,8 @@ snapshots:
       tinyglobby: 0.2.15
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.1.4
-      vite-node: 3.2.4
+      vite: 7.1.4(tsx@4.20.5)
+      vite-node: 3.2.4(tsx@4.20.5)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - jiti
@@ -1035,3 +1462,11 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  wrap-ansi@6.2.0:
+    dependencies:
+      ansi-styles: 4.3.0
+      string-width: 4.2.3
+      strip-ansi: 6.0.1
+
+  yoctocolors-cjs@2.1.3: {}
