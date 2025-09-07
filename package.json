@@ -3,12 +3,18 @@
   "version": "0.0.1",
   "description": "Smart test generation using AI.",
   "main": "dist/index.js",
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "testpilot": "dist/cli/index.js"
+  },
   "scripts": {
     "lint": "biome lint",
     "lint:fix": "biome lint --write",
     "test": "vitest",
     "build": "tsc",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "clean": "rm -rf dist"
   },
   "keywords": [
     "test",

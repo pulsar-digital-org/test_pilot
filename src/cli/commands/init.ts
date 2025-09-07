@@ -3,12 +3,11 @@
  */
 
 import { Command } from 'commander';
-import inquirer from 'inquirer';
 
 export function createInitCommand(): Command {
   return new Command('init')
     .description('Initialize test_pilot configuration')
-    .action(async (options, command) => {
+    .action(async (_options, _command) => {
       // Implement the command logic here
     });
 }
