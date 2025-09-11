@@ -2,10 +2,9 @@ import type { AbstractParser } from '../../types/discovery';
 
 export class ParserFactory {
     private static instance: ParserFactory;
-    private parserCache = new Map<string, AbstractParser>();
     private parsers: AbstractParser[] = [];
 
-    private constructor() {}
+    private constructor() {    }
 
     static getInstance(): ParserFactory {
         if (!ParserFactory.instance) {
@@ -16,28 +15,14 @@ export class ParserFactory {
 
     registerParser(parser: AbstractParser): void {
         this.parsers.push(parser);
-        this.parserCache.clear();
     }
 
-    getParser(filePath: string): AbstractParser | null {
+    getParser(filePath: string): AbstractParser | undefined {
         const extension = this.getFileExtension(filePath);
-        
-        if (this.parserCache.has(extension)) {
-            const cachedParser = this.parserCache.get(extension);
-            if (cachedParser) {
-                return cachedParser;
-            }
-        }
 
-        const parser = this.parsers.find(p => 
+        return this.parsers.find(p => 
             p.getSupportedExtensions().includes(extension)
         );
-        
-        if (parser) {
-            this.parserCache.set(extension, parser);
-        }
-        
-        return parser || null;
     }
 
     private getFileExtension(filePath: string): string {

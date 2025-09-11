@@ -209,7 +209,7 @@ export class DependencyAnalyzer implements IDependencyAnalyzer {
             if (importsResult.ok) {
                 for (const importInfo of importsResult.value) {
                     if (importInfo.importedName === functionName || importInfo.aliasName === functionName) {
-                        const resolvedPath = this.resolveImportPath(currentFilePath, importInfo.modulePath);
+                        const resolvedPath = await this.resolveImportPath(currentFilePath, importInfo.modulePath);
                         if (resolvedPath) {
                             return this.analyzeFunctionDependencies(
                                 resolvedPath,
@@ -238,7 +238,7 @@ export class DependencyAnalyzer implements IDependencyAnalyzer {
         };
     }
 
-    private resolveImportPath(currentFilePath: string, importPath: string): string | null {
+    private async resolveImportPath(currentFilePath: string, importPath: string): Promise<string | null> {
         if (!importPath.startsWith('.')) {
             // External module - skip for now
             return null;
@@ -251,8 +251,10 @@ export class DependencyAnalyzer implements IDependencyAnalyzer {
         
         for (const ext of extensions) {
             const fullPath = resolved + ext;
-            // We can't use async here, so return the most likely path
-            return fullPath;
+            const exists = await this.fileSystem.exists(fullPath);
+            if (exists) {
+                return fullPath;
+            }
         }
 
         return null;

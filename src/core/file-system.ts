@@ -1,6 +1,6 @@
-import { readFile, access } from 'node:fs/promises';
+import { readFile, access, constants } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import type { IFileSystem } from './types';
+import type { IFileSystem } from './analysis/types';
 
 const DEFAULT_TIMEOUT = 5000;
 
@@ -21,7 +21,7 @@ export class FileSystemService implements IFileSystem {
 
     async exists(path: string): Promise<boolean> {
         try {
-            await access(path);
+            await access(path, constants.R_OK);
             return true;
         } catch {
             return false;

@@ -2,8 +2,8 @@
   "name": "test_pilot",
   "version": "0.0.1",
   "description": "Smart test generation using AI.",
-  "main": "dist/index.js",
   "type": "module",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "testpilot": "dist/cli/index.js"
@@ -12,7 +12,7 @@
     "lint": "biome lint",
     "lint:fix": "biome lint --write",
     "test": "vitest",
-    "build": "tsc",
+    "build": "tsup",
     "dev": "tsx src/index.ts",
     "clean": "rm -rf dist"
   },
@@ -27,11 +27,13 @@
   "devDependencies": {
     "@biomejs/biome": "2.2.3",
     "@types/node": "^24.3.1",
+    "tsup": "^8.5.0",
     "vitest": "^3.2.4"
   },
   "dependencies": {
     "commander": "^14.0.0",
     "inquirer": "^12.9.4",
+    "lgz": "link:../../lgz",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }

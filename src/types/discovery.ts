@@ -8,55 +8,31 @@ export interface Discovery {
 
 export interface ParsedFile<T = unknown> {
     filePath: string;
-    content: string;
     language: string;
     ast: T;
     metadata?: Record<string, unknown>;
 }
 
-export interface DiscoveryOptions {
-    readonly includePrivate?: boolean;
-    readonly includeNonExported?: boolean;
-    readonly includeClassMethods?: boolean;
-    readonly includeArrowFunctions?: boolean;
-    readonly includeAnonymous?: boolean;
-}
-
 export interface ParameterInfo {
-    name: string;
-    type?: string;
-    optional?: boolean;
-    defaultValue?: string;
+    readonly name: string;
+    readonly type: string | undefined;
+    readonly optional: boolean;
+    readonly defaultValue: string | undefined;
 }
 
 export interface FunctionInfo {
-    name: string;
-    signature: string;
-    parameters: readonly ParameterInfo[];
-    returnType?: string;
-    isAsync?: boolean;
-    isExported?: boolean;
-    location: CodeLocation;
-    jsDoc?: string;
-}
-
-export interface BaseRouteInfo {
-    path: string;
-    method: string;
-    handler: string;
-    location: CodeLocation;
-}
-
-export interface RouteInfo extends BaseRouteInfo {
-    framework?: string;
-    middleware?: string[];
-    metadata?: Record<string, unknown>;
+    readonly name: string;
+    readonly filePath: string;
+    readonly implementation: string;
+    readonly parameters: readonly ParameterInfo[];
+    readonly returnType: string | undefined;
+    readonly isAsync: boolean;
+    readonly jsDoc: string | undefined;
 }
 
 export abstract class AbstractParser {
-    abstract parseFile(filePath: string, content: string): Result<ParsedFile>;
-    abstract extractFunctions(parsedFile: ParsedFile, options?: DiscoveryOptions): Result<readonly FunctionInfo[]>;
-    abstract extractRoutes(parsedFile: ParsedFile, options?: DiscoveryOptions): Result<readonly RouteInfo[]>;
+    abstract parseFile(filePath: string): Result<ParsedFile>;
+    abstract extractFunctions(parsedFile: ParsedFile): Result<readonly FunctionInfo[]>;
     abstract getSupportedExtensions(): readonly string[];
     abstract getName(): string;
 }

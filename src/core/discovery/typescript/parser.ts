@@ -1,92 +1,234 @@
-/**
- * TypeScript AST Parser
- * Uses the TypeScript Compiler API for accurate parsing of TypeScript files
- */
-
 import ts from 'typescript';
 import { AbstractParser } from '../../../types/discovery';
-import type { ParsedFile, DiscoveryOptions, FunctionInfo, RouteInfo, ParameterInfo } from '../../../types/discovery';
+import type { 
+    ParsedFile, 
+    FunctionInfo,
+    ParameterInfo, 
+} from '../../../types/discovery';
 import type { Result } from '../../../types/misc';
-import type { CodeLocation } from '../../../types/misc';
+import { ParserFactory } from '../function-parser-factory';
 
 export class TypeScriptParser extends AbstractParser {
-  /**
-   * Parse a TypeScript file and return the AST with metadata
-   */
-  parseFile(filePath: string, content: string): Result<ParsedFile<ts.SourceFile>> {
+  private program?: ts.Program;
+  private typeChecker?: ts.TypeChecker;
+  private sourceFile: ts.SourceFile | undefined;
+  private currentNode?: ts.Node;
+
+  parseFile(filePath: string): Result<ParsedFile<ts.SourceFile>> {
     try {
-      const sourceFile = ts.createSourceFile(
-        filePath,
-        content,
-        ts.ScriptTarget.Latest,
-        true,
-        ts.ScriptKind.TS
-      );
-
-      // Check for parse diagnostics if available - TypeScript internal API
-      const diagnostics = (sourceFile as { parseDiagnostics?: ts.Diagnostic[] }).parseDiagnostics;
-      if (diagnostics && diagnostics.length > 0) {
-        const errors = diagnostics
-          .map((diagnostic: ts.Diagnostic) =>
-            ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
-          )
-          .join('\n');
-
-        return {
-          ok: false,
-          error: new Error(`TypeScript parsing errors: ${errors}`),
-        };
+      this.program = ts.createProgram([filePath], {
+        target: ts.ScriptTarget.Latest,
+        module: ts.ModuleKind.ESNext,
+        allowJs: true,
+        skipLibCheck: true,
+        noResolve: false
+      });
+      
+      this.typeChecker = this.program.getTypeChecker();
+      this.sourceFile = this.program.getSourceFile(filePath);
+      
+      if (!this.sourceFile) {
+        throw new Error(`Could not create source file for ${filePath}`);
       }
 
-      const parsed: ParsedFile<ts.SourceFile> = {
-        filePath,
-        content,
-        ast: sourceFile,
-        language: 'typescript',
-      };
+      this.validateParseResult(this.sourceFile);
 
-      return { ok: true, value: parsed };
-    } catch (error) {
       return {
-        ok: false,
-        error: error instanceof Error ? error : new Error(String(error)),
+        ok: true,
+        value: {
+          filePath,
+          ast: this.sourceFile,
+          language: 'typescript'
+        }
       };
+    } catch (error) {
+      return this.createErrorResult(error);
     }
   }
 
-  extractFunctions(parsedFile: ParsedFile<ts.SourceFile>, options: DiscoveryOptions = {}): Result<readonly FunctionInfo[]> {
+  /**
+   * In the future we can pass in options to control which functions should be included
+   * @param parsedFile ts source file
+   * @returns 
+   */
+  extractFunctions(parsedFile: ParsedFile<ts.SourceFile>): Result<readonly FunctionInfo[]> {
     try {
-      const defaultOptions: Required<DiscoveryOptions> = {
-        includePrivate: false,
-        includeNonExported: true,
-        includeClassMethods: true,
-        includeArrowFunctions: true,
-        includeAnonymous: false,
-      };
-
-      const finalOptions = { ...defaultOptions, ...options };
-      const functions = this.extractFunctionInfo(parsedFile.ast, parsedFile.ast);
+      const functions: FunctionInfo[] = [];
+      this.sourceFile = parsedFile.ast;
       
-      const filteredFunctions = functions.filter(func => this.shouldIncludeFunction(func, finalOptions));
-      return { ok: true, value: filteredFunctions };
-    } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof Error ? error : new Error(String(error)),
+      const visit = (node: ts.Node) => {
+        if (this.isFunctionLikeNode(node)) {
+          this.currentNode = node;
+          const functionInfo = this.getFunction();
+          functions.push(functionInfo);
+        }
+        ts.forEachChild(node, visit);
       };
+      
+      visit(this.sourceFile);
+      return { ok: true, value: functions };
+    } catch (error) {
+      return this.createErrorResult(error);
     }
   }
 
-  extractRoutes(parsedFile: ParsedFile<ts.SourceFile>, _options: DiscoveryOptions = {}): Result<readonly RouteInfo[]> {
-    try {
-      const routes = this.extractRouteInfo(parsedFile.ast, parsedFile.ast);
-      return { ok: true, value: routes };
-    } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof Error ? error : new Error(String(error)),
-      };
+  private isFunctionLikeNode(node: ts.Node): node is ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction {
+    return ts.isFunctionDeclaration(node) ||
+           ts.isMethodDeclaration(node) ||
+           ts.isFunctionExpression(node) ||
+           ts.isArrowFunction(node);
+  }
+
+  private getJsDoc(): string | undefined {
+    if (!this.currentNode || !this.sourceFile) {
+      return undefined;
     }
+    
+    const functionNode = this.currentNode as ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction;
+    
+    // Get JSDoc comments using ts.getJSDocCommentsAndTags
+    const jsDocComments = ts.getJSDocCommentsAndTags(functionNode);
+    
+    if (jsDocComments.length === 0) {
+      return undefined;
+    }
+    
+    // Extract the actual JSDoc text
+    const jsDocTexts: string[] = [];
+    
+    for (const jsDoc of jsDocComments) {
+      if (ts.isJSDoc(jsDoc)) {
+        // Get the full text of the JSDoc comment
+        const fullText = jsDoc.getFullText(this.sourceFile);
+        jsDocTexts.push(fullText.trim());
+      }
+    }
+    
+    return jsDocTexts.length > 0 ? jsDocTexts.join('\n') : undefined;
+  }
+
+  private getImplementation(): string {
+    if (!this.currentNode || !this.sourceFile) {
+      return '';
+    }
+    
+    // Use getText() instead of getFullText() to exclude leading trivia (JSDoc comments)
+    return this.currentNode.getText(this.sourceFile).trim();
+  }
+
+  private getReturnType(): string | undefined {
+    if (!this.currentNode) {
+      return undefined;
+    }
+    
+    const functionNode = this.currentNode as ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction;
+    
+    // First try to get explicit return type annotation
+    if (functionNode.type) {
+      return functionNode.type.getText();
+    }
+    
+    // If no explicit return type, try to infer it using type checker
+    if (this.typeChecker) {
+      try {
+        const signature = this.typeChecker.getSignatureFromDeclaration(functionNode);
+        if (signature) {
+          const returnType = this.typeChecker.getReturnTypeOfSignature(signature);
+          return this.typeChecker.typeToString(returnType);
+        }
+      } catch {
+        // Fallback to undefined if type checking fails
+      }
+    }
+    
+    return undefined;
+  }
+
+  private getFunction(): FunctionInfo {
+    if (!this.currentNode || !this.sourceFile) {
+      throw new Error('No current node or source file available');
+    }
+    
+    const functionNode = this.currentNode as ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction;
+    
+    return {
+      name: this.getFunctionName(),
+      filePath: this.sourceFile.fileName,
+      implementation: this.getImplementation(),
+      parameters: this.getFunctionParameters(),
+      returnType: this.getReturnType(),
+      isAsync: this.isAsyncFunction(functionNode),
+      jsDoc: this.getJsDoc()
+    };
+  }
+
+  private isAsyncFunction(node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction): boolean {
+    return !!(node.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword));
+  }
+
+  private getFunctionParameters(): readonly ParameterInfo[] {
+    if (!this.currentNode) {
+      return [];
+    }
+    
+    const functionNode = this.currentNode as ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction;
+    
+    return functionNode.parameters.map(param => {
+      const name = param.name.getText();
+      const type = param.type ? param.type.getText() : this.getParameterTypeFromTypeChecker(param);
+      const optional = !!param.questionToken;
+      const defaultValue = param.initializer ? param.initializer.getText() : undefined;
+      
+      return {
+        name,
+        type,
+        optional,
+        defaultValue
+      };
+    });
+  }
+
+  private getParameterTypeFromTypeChecker(param: ts.ParameterDeclaration): string | undefined {
+    if (!this.typeChecker) {
+      return undefined;
+    }
+    
+    try {
+      const type = this.typeChecker.getTypeAtLocation(param);
+      return this.typeChecker.typeToString(type);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private getFunctionName(): string {
+    if (!this.currentNode) {
+      return 'anonymous';
+    }
+    
+    const functionNode = this.currentNode as ts.FunctionDeclaration | ts.MethodDeclaration | ts.FunctionExpression | ts.ArrowFunction;
+    
+    if (ts.isFunctionDeclaration(functionNode) || ts.isMethodDeclaration(functionNode)) {
+      return functionNode.name?.getText() || 'anonymous';
+    }
+    
+    if (ts.isFunctionExpression(functionNode)) {
+      return functionNode.name?.getText() || 'anonymous';
+    }
+    
+    // For arrow functions, try to get name from variable declaration
+    if (ts.isArrowFunction(functionNode)) {
+      const parent = functionNode.parent;
+      if (ts.isVariableDeclaration(parent)) {
+        return parent.name.getText();
+      }
+      if (ts.isPropertyAssignment(parent)) {
+        return parent.name.getText();
+      }
+      return 'anonymous';
+    }
+    
+    return 'anonymous';
   }
 
   getSupportedExtensions(): readonly string[] {
@@ -97,273 +239,24 @@ export class TypeScriptParser extends AbstractParser {
     return 'TypeScript';
   }
 
-  /**
-   * Extract function information from a TypeScript node
-   */
-  private extractFunctionInfo(
-    node: ts.Node,
-    sourceFile: ts.SourceFile
-  ): FunctionInfo[] {
-    const functions: FunctionInfo[] = [];
-
-    const visit = (node: ts.Node): void => {
-      if (
-        ts.isFunctionDeclaration(node) ||
-        ts.isMethodDeclaration(node) ||
-        ts.isArrowFunction(node)
-      ) {
-        const funcInfo = this.createFunctionInfo(node, sourceFile);
-        if (funcInfo) {
-          functions.push(funcInfo);
-        }
-      }
-
-      ts.forEachChild(node, visit);
-    };
-
-    visit(node);
-    return functions;
+  private validateParseResult(sourceFile: ts.SourceFile): void {
+    const diagnostics = (sourceFile as any).parseDiagnostics;
+    if (diagnostics?.length > 0) {
+      const errors = diagnostics
+        .map((diagnostic: ts.Diagnostic) =>
+          ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
+        )
+        .join('\n');
+      throw new Error(`TypeScript parsing errors: ${errors}`);
+    }
   }
 
-  /**
-   * Create function information from a TypeScript function node
-   */
-  private createFunctionInfo(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction,
-    sourceFile: ts.SourceFile
-  ): FunctionInfo | null {
-    const name = this.getFunctionName(node);
-    if (!name) return null;
-
-    const parameters = this.extractParameters(node);
-    const returnType = this.getReturnType(node);
-    const location = this.getSourceLocation(node, sourceFile);
-    const isAsync = this.isAsyncFunction(node);
-    const isExported = this.isExportedFunction(node);
-    const jsDoc = this.getJSDocComment(node);
-
+  private createErrorResult(error: unknown): Result<never> {
     return {
-      name,
-      signature: this.getFunctionSignature(node),
-      parameters,
-      ...(returnType && { returnType }),
-      isAsync,
-      isExported,
-      location,
-      ...(jsDoc && { jsDoc }),
+      ok: false,
+      error: error instanceof Error ? error : new Error(String(error))
     };
-  }
-
-  private getFunctionName(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): string | null {
-    if (ts.isFunctionDeclaration(node) && node.name) {
-      return node.name.text;
-    }
-    if (ts.isMethodDeclaration(node) && node.name) {
-      return node.name.getText();
-    }
-    // For arrow functions, we might need to look at the parent to get the variable name
-    if (
-      ts.isArrowFunction(node) &&
-      node.parent &&
-      ts.isVariableDeclaration(node.parent)
-    ) {
-      return node.parent.name.getText();
-    }
-    return null;
-  }
-
-  public extractParameters(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): readonly ParameterInfo[] {
-    return node.parameters.map((param) => {
-      const name = param.name.getText();
-      const type = param.type?.getText();
-      const optional = !!param.questionToken;
-      const defaultValue = param.initializer?.getText();
-
-      return {
-        name,
-        ...(type && { type }),
-        ...(optional && { optional }),
-        ...(defaultValue && { defaultValue }),
-      };
-    });
-  }
-
-  private getReturnType(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): string | undefined {
-    return node.type ? node.type.getText() : undefined;
-  }
-
-  private extractRouteInfo(
-    node: ts.Node,
-    sourceFile: ts.SourceFile
-  ): RouteInfo[] {
-    const routes: RouteInfo[] = [];
-    
-    const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node)) {
-        const route = this.extractExpressRoute(node, sourceFile);
-        if (route) {
-          routes.push(route);
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-
-    visit(node);
-    return routes;
-  }
-
-  private extractExpressRoute(node: ts.CallExpression, sourceFile: ts.SourceFile): RouteInfo | null {
-    if (!ts.isPropertyAccessExpression(node.expression)) return null;
-    
-    const methodName = node.expression.name.text;
-    const httpMethods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'];
-    
-    if (!httpMethods.includes(methodName.toLowerCase())) return null;
-    
-    const args = node.arguments;
-    if (args.length < 2) return null;
-    
-    const pathArg = args[0];
-    if (!pathArg || !ts.isStringLiteral(pathArg)) return null;
-    
-    const handlerArg = args[args.length - 1];
-    if (!handlerArg) return null;
-    
-    let handlerName = 'anonymous';
-    
-    if (ts.isIdentifier(handlerArg)) {
-      handlerName = handlerArg.text;
-    } else if (ts.isArrowFunction(handlerArg) || ts.isFunctionExpression(handlerArg)) {
-      handlerName = 'inline function';
-    }
-    
-    const location = this.getSourceLocation(node, sourceFile);
-    
-    return {
-      path: pathArg.text,
-      method: methodName.toUpperCase(),
-      handler: handlerName,
-      location,
-      framework: 'express',
-      middleware: this.extractMiddleware(args.slice(1, -1)),
-    };
-  }
-
-  private extractMiddleware(middlewareArgs: readonly ts.Expression[]): string[] {
-    return middlewareArgs.map(arg => {
-      if (ts.isIdentifier(arg)) {
-        return arg.text;
-      }
-      return 'middleware';
-    });
-  }
-
-  private shouldIncludeFunction(func: FunctionInfo, options: Required<DiscoveryOptions>): boolean {
-    if (!options.includeNonExported && !func.isExported) return false;
-    if (!options.includeAnonymous && func.name === 'anonymous') return false;
-    return true;
-  }
-
-  public getSourceLocation(
-    node: ts.Node,
-    sourceFile: ts.SourceFile
-  ): CodeLocation {
-    const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-
-    return {
-      line: start.line + 1, // Convert to 1-based
-      column: start.character + 1, // Convert to 1-based
-    };
-  }
-
-  private isAsyncFunction(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): boolean {
-    return (
-      node.modifiers?.some((mod) => mod.kind === ts.SyntaxKind.AsyncKeyword) ??
-      false
-    );
-  }
-
-  private isExportedFunction(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): boolean {
-    if (ts.isFunctionDeclaration(node)) {
-      return (
-        node.modifiers?.some(
-          (mod) => mod.kind === ts.SyntaxKind.ExportKeyword
-        ) ?? false
-      );
-    }
-    return false;
-  }
-
-  private getJSDocComment(node: ts.Node): string | undefined {
-    const jsDoc = ts.getJSDocCommentsAndTags(node);
-    if (jsDoc.length > 0) {
-      return jsDoc.map((doc) => doc.getText()).join('\n');
-    }
-    return undefined;
-  }
-
-  private getFunctionSignature(
-    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ArrowFunction
-  ): string {
-    return node.getText();
-  }
-
-  /**
-   * Check if a file is TypeScript based on extension
-   */
-  static isTypeScriptFile(filePath: string): boolean {
-    return /\.tsx?$/i.test(filePath);
-  }
-
-  /**
-   * Get import statements from the source file
-   */
-  getImports(
-    sourceFile: ts.SourceFile
-  ): Array<{ module: string; imports: string[] }> {
-    const imports: Array<{ module: string; imports: string[] }> = [];
-
-    sourceFile.statements.forEach((statement) => {
-      if (ts.isImportDeclaration(statement) && statement.moduleSpecifier) {
-        const moduleSpecifier = (statement.moduleSpecifier as ts.StringLiteral)
-          .text;
-        const importList: string[] = [];
-
-        if (statement.importClause) {
-          const { name, namedBindings } = statement.importClause;
-
-          if (name) {
-            importList.push(name.text); // Default import
-          }
-
-          if (namedBindings) {
-            if (ts.isNamespaceImport(namedBindings)) {
-              importList.push(`* as ${namedBindings.name.text}`);
-            } else if (ts.isNamedImports(namedBindings)) {
-              namedBindings.elements.forEach((element) => {
-                importList.push(element.name.text);
-              });
-            }
-          }
-        }
-
-        imports.push({
-          module: moduleSpecifier,
-          imports: importList,
-        });
-      }
-    });
-
-    return imports;
   }
 }
+
+ParserFactory.getInstance().registerParser(new TypeScriptParser());
