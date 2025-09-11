@@ -7,22 +7,46 @@ import type {
 } from './types';
 import type { FunctionInfo } from '../../types/discovery';
 import type { Result } from '../../types/misc';
+import type { ImportInfo } from './import-resolver';
+import { ImportResolver } from './import-resolver';
+import { basename, dirname, extname } from 'path';
 
 export class ContextBuilder implements IContextBuilder {
+    private readonly importResolver: ImportResolver;
+
     constructor(
         private readonly promptGenerator: IPromptGenerator
-    ) {}
+    ) {
+        this.importResolver = new ImportResolver();
+    }
 
-    buildFunctionContext(func: FunctionInfo): FunctionContext {
+    buildFunctionContext(func: FunctionInfo, imports?: ImportInfo): FunctionContext {
         return {
-            function: func
+            function: func,
+            imports
         };
     }
 
-    buildSystemPrompt(functions: readonly FunctionInfo[]): Result<GeneratedPrompt> {
+    buildSystemPrompt(functions: readonly FunctionInfo[], testOutputPath?: string): Result<GeneratedPrompt> {
         try {
-            // Build function contexts directly
-            const functionContexts = functions.map(func => this.buildFunctionContext(func));
+            // Build function contexts with import information
+            const functionContexts = functions.map(func => {
+                let imports: ImportInfo | undefined;
+                
+                if (testOutputPath) {
+                    // Create a test file path for this specific function
+                    const testFileName = generateTestFileName(func.filePath, func.name);
+                    const fullTestPath = testOutputPath.endsWith(testFileName) ? testOutputPath : `${testOutputPath}/${testFileName}`;
+                    
+                    imports = this.importResolver.resolveImports(
+                        func.filePath, 
+                        func.name, 
+                        fullTestPath
+                    );
+                }
+                
+                return this.buildFunctionContext(func, imports);
+            });
 
             const systemPromptContext: SystemPromptContext = {
                 functions: functionContexts
@@ -57,4 +81,11 @@ export class ContextBuilder implements IContextBuilder {
             };
         }
     }
+}
+
+// Helper function for generating test file names (shared with generate command)
+function generateTestFileName(originalPath: string, functionName: string): string {
+    const baseName = basename(originalPath, extname(originalPath));
+    const dir = dirname(originalPath).replace(/^\.\//, '').replace(/\//g, '-');
+    return `${dir ? dir + '-' : ''}${baseName}-${functionName}.test.ts`;
 }

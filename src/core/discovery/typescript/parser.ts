@@ -46,6 +46,31 @@ export class TypeScriptParser extends AbstractParser {
     }
   }
 
+  parseContent(content: string, fileName: string = 'temp.ts'): Result<ParsedFile<ts.SourceFile>> {
+    try {
+      this.sourceFile = ts.createSourceFile(
+        fileName,
+        content,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS
+      );
+
+      this.validateParseResult(this.sourceFile);
+
+      return {
+        ok: true,
+        value: {
+          filePath: fileName,
+          ast: this.sourceFile,
+          language: 'typescript'
+        }
+      };
+    } catch (error) {
+      return this.createErrorResult(error);
+    }
+  }
+
   /**
    * In the future we can pass in options to control which functions should be included
    * @param parsedFile ts source file

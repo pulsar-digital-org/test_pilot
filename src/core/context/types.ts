@@ -1,8 +1,10 @@
 import type { FunctionInfo } from '../../types/discovery';
 import type { Result } from '../../types/misc';
+import type { ImportInfo } from './import-resolver';
 
 export interface FunctionContext {
     readonly function: FunctionInfo;
+    readonly imports?: ImportInfo;
 }
 
 export interface SystemPromptContext {
@@ -22,8 +24,8 @@ export interface PromptMetadata {
 }
 
 export interface IContextBuilder {
-    buildFunctionContext(func: FunctionInfo): FunctionContext;
-    buildSystemPrompt(functions: readonly FunctionInfo[]): Result<GeneratedPrompt>;
+    buildFunctionContext(func: FunctionInfo, imports?: ImportInfo): FunctionContext;
+    buildSystemPrompt(functions: readonly FunctionInfo[], testOutputPath?: string): Result<GeneratedPrompt>;
 }
 
 export interface IPromptGenerator {
