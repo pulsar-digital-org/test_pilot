@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
-import { createInitCommand } from './commands/init';
-import { createGenerateCommand } from './commands/generate';
-import packageJson from '../../package.json';
-import { createDiscoverCommand } from './commands/discover';
+import { Command } from "commander";
+import packageJson from "../../package.json";
+import { createDiscoverCommand } from "./commands/discover";
+import { createGenerateCommand } from "./commands/generate";
+import { createInitCommand } from "./commands/init";
 
 const program = new Command();
 
 program
-  .name('testpilot')
-  .description('AI-powered test generation tool')
-  .version(packageJson.version);
+	.name("testpilot")
+	.description("AI-powered test generation tool")
+	.version(packageJson.version);
 
 // Register commands
 program.addCommand(createInitCommand());
@@ -21,3 +21,4 @@ program.addCommand(createGenerateCommand());
 
 // Parse command line arguments
 program.parse();
+
