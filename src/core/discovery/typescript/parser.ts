@@ -317,7 +317,7 @@ export class TypeScriptParser extends AbstractParser {
 	}
 
 	private validateParseResult(sourceFile: ts.SourceFile): void {
-		const diagnostics = (sourceFile as any).parseDiagnostics;
+		const diagnostics = sourceFile.parseDiagnostics;
 		if (diagnostics?.length > 0) {
 			const errors = diagnostics
 				.map((diagnostic: ts.Diagnostic) =>
