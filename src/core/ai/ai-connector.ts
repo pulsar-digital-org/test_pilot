@@ -1,52 +1,46 @@
-import type { IAIConnector, AIProvider, AIMessage, AIResponse, AIConnectorConfig } from './types';
-import type { Result } from '../../types/misc';
-import { OllamaProvider } from './providers/ollama';
-import { MistralProvider } from './providers/mistral';
+import {
+	type ChatModel,
+	igniteEngine,
+	type LlmEngine,
+	type LlmResponse,
+	Message,
+} from "multi-llm-ts";
+import type { Result } from "../../types/misc";
+import type { AIConnectorConfig } from "./types";
 
-export class AIConnector implements IAIConnector {
-    private readonly provider: AIProvider;
+export class AIConnector {
+	private readonly provider: LlmEngine;
+	private readonly model: {
+		modelName: string;
+		chatModel?: ChatModel;
+	};
 
-    constructor(config: AIConnectorConfig) {
-        this.provider = this.createProvider(config);
-    }
+	constructor(config: AIConnectorConfig) {
+		this.provider = this.createProvider(config);
+		this.model = {
+			modelName: config.model,
+		};
+	}
 
-    async generateTestsForFunction(systemPrompt: string, userPrompt: string): Promise<Result<AIResponse>> {
-        const messages: AIMessage[] = [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-        ];
+	async generateTestsForFunction(
+		systemPrompt: string,
+		userPrompt: string,
+	): Promise<Result<LlmResponse>> {
+		if (!this.model.chatModel) {
+			this.model.chatModel = this.provider.buildModel(this.model.modelName);
+		}
+		const messages = [
+			new Message("system", systemPrompt),
+			new Message("user", userPrompt),
+		];
 
-        return await this.provider.generateResponse(messages);
-    }
+		return {
+			ok: true,
+			value: await this.provider.complete(this.model.chatModel, messages),
+		};
+	}
 
-    private createProvider(config: AIConnectorConfig): AIProvider {
-        switch (config.provider) {
-            case 'ollama':
-                return new OllamaProvider({
-                    model: config.model,
-                    baseUrl: config.baseUrl
-                });
-            
-            case 'mistral':
-                if (!config.apiKey) {
-                    throw new Error('API key is required for Mistral provider');
-                }
-                return new MistralProvider({
-                    model: config.model,
-                    apiKey: config.apiKey,
-                    baseUrl: config.baseUrl
-                });
-            
-            case 'anthropic':
-                // TODO: Implement when needed
-                throw new Error('Anthropic provider not yet implemented');
-            
-            case 'openai':
-                // TODO: Implement when needed
-                throw new Error('OpenAI provider not yet implemented');
-            
-            default:
-                throw new Error(`Unsupported AI provider: ${config.provider}`);
-        }
-    }
+	private createProvider(config: AIConnectorConfig): LlmEngine {
+		return igniteEngine(config.provider, config.engine);
+	}
 }

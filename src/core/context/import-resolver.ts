@@ -1,5 +1,5 @@
-import { relative, dirname, join } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { relative, dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 
 export interface ImportInfo {
     readonly functionImport: string;  // How to import the function being tested

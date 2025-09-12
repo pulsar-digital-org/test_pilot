@@ -63,7 +63,7 @@ export function createDiscoverCommand(): Command {
           console.log(promptResult.value.userPrompt);
           
           if (index < functions.length - 1) {
-            console.log('\n' + '='.repeat(80));
+            console.log(`\n${'='.repeat(80)}`);
           }
         });
 
