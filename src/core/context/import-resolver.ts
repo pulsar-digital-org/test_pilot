@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 
 export interface ImportInfo {
 	readonly functionImport: string; // How to import the function being tested
@@ -44,14 +44,21 @@ export class ImportResolver {
 	}
 
 	/**
-	 * Calculate the relative import path from test file to function file
+	 * Calculate the import path from test file to function file
 	 */
 	private resolveFunctionImport(
 		functionFilePath: string,
 		testOutputPath: string,
 		functionName: string,
 	): string {
-		// Calculate relative path from test file to function file
+		// Check if project uses import aliases
+		const aliasPath = this.resolveWithAlias(functionFilePath);
+		if (aliasPath) {
+			return `import { ${functionName} } from '${aliasPath}';`;
+		}
+
+		// Fallback to relative path
+		// Fix: For flat test file structures, use the base test directory
 		const testDir = dirname(testOutputPath);
 		const relativePath = relative(testDir, functionFilePath);
 
@@ -63,6 +70,48 @@ export class ImportResolver {
 
 		// Return the import statement
 		return `import { ${functionName} } from '${normalizedPath}';`;
+	}
+
+	/**
+	 * Try to resolve import path using package.json aliases
+	 */
+	private resolveWithAlias(functionFilePath: string): string | null {
+		try {
+			const packageJsonPath = join(this.projectRoot, "package.json");
+			if (!existsSync(packageJsonPath)) {
+				return null;
+			}
+
+			const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+			const imports = packageJson.imports;
+			
+			if (!imports) {
+				return null;
+			}
+
+			// Get relative path from project root
+			const relativeFromRoot = relative(this.projectRoot, functionFilePath);
+			
+			// Check each import alias
+			for (const [alias, target] of Object.entries(imports)) {
+				if (typeof target !== 'string') continue;
+				
+				// Remove wildcard from alias and target
+				const cleanAlias = alias.replace('/*', '');
+				const cleanTarget = target.replace('/*', '');
+				
+				// Check if file is under this alias target
+				if (relativeFromRoot.startsWith(cleanTarget)) {
+					const pathAfterTarget = relativeFromRoot.substring(cleanTarget.length);
+					const aliasPath = `${cleanAlias}${pathAfterTarget}`.replace(/\.(ts|tsx|js|jsx)$/, "");
+					return aliasPath;
+				}
+			}
+			
+			return null;
+		} catch (error) {
+			return null;
+		}
 	}
 
 	/**

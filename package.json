@@ -1,41 +1,41 @@
 {
-  "name": "test_pilot",
-  "version": "0.0.1",
-  "description": "Smart test generation using AI.",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "testpilot": "dist/cli/index.js"
-  },
-  "scripts": {
-    "lint": "biome lint",
-    "lint:fix": "biome lint --write",
-    "test": "vitest",
-    "build": "tsup",
-    "dev": "tsx src/index.ts",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "test",
-    "javascript",
-    "typescript",
-    "testing",
-    "AI"
-  ],
-  "author": "Pulsar Digital s.r.o",
-  "devDependencies": {
-    "@biomejs/biome": "2.2.3",
-    "@types/node": "^24.3.1",
-    "tsup": "^8.5.0",
-    "vitest": "^3.2.4"
-  },
-  "dependencies": {
-    "commander": "^14.0.0",
-    "inquirer": "^12.9.4",
-    "lgz": "link:../../lgz",
-    "multi-llm-ts": "^4.4.4",
-    "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
-  }
+	"name": "test_pilot",
+	"version": "0.0.1",
+	"description": "Smart test generation using AI.",
+	"type": "module",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"bin": {
+		"testpilot": "dist/cli/index.js"
+	},
+	"scripts": {
+		"lint": "biome lint",
+		"lint:fix": "biome lint --write",
+		"test": "vitest run",
+		"build": "tsup",
+		"dev": "tsx src/index.ts",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"test",
+		"javascript",
+		"typescript",
+		"testing",
+		"AI"
+	],
+	"author": "Pulsar Digital s.r.o",
+	"devDependencies": {
+		"@biomejs/biome": "2.2.3",
+		"@types/node": "^24.3.1",
+		"tsup": "^8.5.0",
+		"vitest": "^3.2.4"
+	},
+	"dependencies": {
+		"commander": "^14.0.0",
+		"inquirer": "^12.9.4",
+		"lgz": "link:../../lgz",
+		"multi-llm-ts": "^4.4.4",
+		"tsx": "^4.20.5",
+		"typescript": "^5.9.2"
+	}
 }

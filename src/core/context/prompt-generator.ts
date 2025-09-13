@@ -101,6 +101,61 @@ Your task is to generate high-quality, comprehensive tests based on the provided
 				}
 			}
 
+			// Class context (if this is a class method)
+			if ((func as any).classContext) {
+				const classInfo = (func as any).classContext;
+				lines.push("\n**Class Context**:");
+				lines.push("```typescript");
+				
+				// Class declaration with JSDoc if available
+				if (classInfo.jsDoc) {
+					lines.push(classInfo.jsDoc);
+				}
+				lines.push(`class ${classInfo.name} {`);
+				
+				// Properties
+				if (classInfo.properties.length > 0) {
+					classInfo.properties.forEach(prop => {
+						const modifiers = [];
+						if (prop.isPrivate) modifiers.push("private");
+						if (prop.isStatic) modifiers.push("static");
+						if (prop.isReadonly) modifiers.push("readonly");
+						
+						const modifierStr = modifiers.length > 0 ? modifiers.join(" ") + " " : "";
+						const typeStr = prop.type ? `: ${prop.type}` : "";
+						lines.push(`  ${modifierStr}${prop.name}${typeStr};`);
+					});
+					
+					if (classInfo.methods.length > 0) {
+						lines.push(""); // Empty line between properties and methods
+					}
+				}
+				
+				// Method signatures
+				classInfo.methods.forEach(method => {
+					const modifiers = [];
+					if (method.isPrivate) modifiers.push("private");
+					if (method.isStatic) modifiers.push("static");
+					if (method.isAsync) modifiers.push("async");
+					
+					const modifierStr = modifiers.length > 0 ? modifiers.join(" ") + " " : "";
+					const params = method.parameters.map(p => {
+						const optional = p.optional ? "?" : "";
+						const type = p.type ? `: ${p.type}` : "";
+						const defaultVal = p.defaultValue ? ` = ${p.defaultValue}` : "";
+						return `${p.name}${optional}${type}${defaultVal}`;
+					}).join(", ");
+					const returnType = method.returnType ? `: ${method.returnType}` : "";
+					
+					lines.push(`  ${modifierStr}${method.name}(${params})${returnType};`);
+				});
+				
+				lines.push("}");
+				lines.push("```");
+				
+				lines.push("\n**Note**: The above shows the complete class interface. You should test ONLY the target method, but you have access to all class properties and methods for proper testing.");
+			}
+
 			// Parameters
 			if (func.parameters.length > 0) {
 				lines.push("\n**Parameters**:");

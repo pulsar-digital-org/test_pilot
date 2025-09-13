@@ -4,6 +4,7 @@ import { AIConnector, type AIProviders, CodeValidator } from "@core/ai";
 import { createContextBuilder } from "@core/context";
 import { Discovery } from "@core/discovery";
 import { Command } from "commander";
+import { interactiveFunctionDiscovery, confirmTestGeneration } from "../interactive/generate.js";
 
 interface GenerateOptions {
 	recursive?: boolean;
@@ -14,6 +15,7 @@ interface GenerateOptions {
 	output: string;
 	maxRetries: string;
 	provider: AIProviders;
+	interactive?: boolean;
 }
 
 /**
@@ -49,10 +51,31 @@ export function createGenerateCommand(): Command {
 			"./tests",
 		)
 		.option("--max-retries <retries>", "Maximum retries for invalid code", "3")
+		.option(
+			"-i, --interactive",
+			"Interactive mode: discover and select functions to generate tests for",
+		)
 		.action(async (options: GenerateOptions) => {
 			try {
-				const discovery = new Discovery(options.directory);
-				const functions = await discovery.discover();
+				let functions;
+				
+				if (options.interactive) {
+					functions = await interactiveFunctionDiscovery(options.directory);
+					
+					if (functions.length === 0) {
+						console.log("👋 No functions selected. Exiting...");
+						return;
+					}
+					
+					const confirmed = await confirmTestGeneration(functions);
+					if (!confirmed) {
+						console.log("👋 Test generation cancelled. Exiting...");
+						return;
+					}
+				} else {
+					const discovery = new Discovery(options.directory);
+					functions = await discovery.discover();
+				}
 
 				const aiConnector = new AIConnector({
 					provider: options.provider,

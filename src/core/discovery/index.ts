@@ -68,6 +68,12 @@ export class Discovery {
 	): Promise<string[]> {
 		const allFiles: string[] = [];
 
+		// if this path is not a dir just add the file
+		if (statSync(directoryPath).isFile()) {
+			this.filePaths = [directoryPath];
+			return this.filePaths;
+		}
+
 		const traverseDirectory = (dir: string) => {
 			const items = readdirSync(dir);
 
@@ -97,4 +103,3 @@ export class Discovery {
 		return this.filePaths;
 	}
 }
-

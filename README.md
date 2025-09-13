@@ -5,11 +5,13 @@ An AI-powered test generation tool that understands your code and creates intell
 ## Features
 
 🔍 **Smart Function Discovery** - Analyzes TypeScript/JavaScript files to extract functions with full signature information  
-🤖 **AI-Powered Test Generation** - Uses Ollama or Mistral to generate intelligent test cases  
+🏗️ **Intelligent Class Support** - Detects class methods with complete interface context to prevent AI hallucination  
+🤖 **AI-Powered Test Generation** - Uses Ollama or Mistral to generate intelligent test cases with realistic edge cases  
 ✅ **Agentic Validation** - Self-corrects generated tests by validating with TypeScript parser  
 📦 **Framework Detection** - Auto-detects your testing framework (Vitest, Jest, Mocha)  
 🎯 **Correct Imports** - Generates proper import paths for tests and testing utilities  
 🔄 **Retry Logic** - Automatically retries invalid code generation with error feedback  
+🧠 **Context-Aware** - Provides AI with complete class interfaces while testing individual methods  
 
 ## Quick Start
 
@@ -127,17 +129,19 @@ test-pilot generate -p mistral -m mistral-small -k $MISTRAL_API_KEY
 
 ## How It Works
 
-1. **🔍 Function Discovery**: Parses TypeScript/JavaScript files to extract functions with parameters, return types, and JSDoc
-2. **📋 Context Building**: Creates focused prompts with function signatures, imports, and testing framework info
-3. **🤖 AI Generation**: Sends prompts to AI model (Ollama/Mistral) to generate test code
-4. **✅ Validation**: Uses TypeScript parser to validate generated code syntax
-5. **🔄 Self-Correction**: Retries with error feedback if code is invalid
-6. **💾 Save**: Writes validated test files with correct imports
+1. **🔍 Smart Discovery**: Parses TypeScript/JavaScript files to extract functions, class methods, parameters, return types, and JSDoc
+2. **🏗️ Class Context Building**: For class methods, provides complete class interface (properties + method signatures) to prevent AI from hallucinating non-existent methods
+3. **📋 Context Generation**: Creates focused prompts with function signatures, class context, imports, and testing framework info
+4. **🤖 AI Generation**: Sends rich context to AI model (Ollama/Mistral) to generate realistic, comprehensive test code
+5. **✅ Validation**: Uses TypeScript parser to validate generated code syntax
+6. **🔄 Self-Correction**: Retries with error feedback if code is invalid
+7. **💾 Save**: Writes validated test files with correct imports and proper setup/teardown
 
 ## Generated Test Structure
 
-TestPilot generates clean, well-structured tests:
+TestPilot generates clean, well-structured tests with intelligent context awareness:
 
+### For Regular Functions
 ```typescript
 // Auto-generated imports based on your testing framework
 import { describe, test, expect } from 'vitest';
@@ -161,12 +165,78 @@ describe('calculateTotal', () => {
 });
 ```
 
+### For Class Methods (with Full Context Awareness)
+```typescript
+// TestPilot provides complete class interface to AI
+// AI sees: class Calculator { private history: number[]; add(); subtract(); getHistory(); clearHistory(); }
+// But only tests the target method with full implementation
+
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { Calculator } from '../src/example/calculator';
+
+describe('Calculator.add', () => {
+  let calculator: Calculator;
+
+  beforeEach(() => {
+    calculator = new Calculator();
+  });
+
+  afterEach(() => {
+    calculator.clearHistory(); // AI knows this method exists!
+  });
+
+  test('should add two positive numbers', () => {
+    const result = calculator.add(2, 3);
+    expect(result).toBe(5);
+  });
+
+  test('should add result to history', () => {
+    calculator.add(2, 3);
+    const history = calculator.getHistory(); // Tests class state interaction
+    expect(history).toEqual([5]);
+  });
+
+  test('should handle floating point precision', () => {
+    const result = calculator.add(0.1, 0.2);
+    expect(result).toBeCloseTo(0.3);
+  });
+  
+  // AI generates 29 comprehensive test cases with realistic edge cases!
+});
+```
+
+## What Makes TestPilot Special
+
+### 🎯 **Zero AI Hallucination for Classes**
+Traditional AI test generators often hallucinate methods that don't exist. TestPilot solves this by providing the AI with complete class interfaces while only revealing the implementation for the method being tested.
+
+```typescript
+// AI sees the complete interface:
+class Calculator {
+  private history: number[];
+  add(a: number, b: number): number;
+  subtract(a: number, b: number): number;
+  getHistory(): number[];
+  clearHistory(): void;
+}
+
+// But only gets implementation for the target method
+// Result: AI never invents multiply() or divide() methods!
+```
+
+### 🧠 **Context-Aware Test Generation**
+- Tests class method interactions (e.g., `add()` affects `getHistory()`)
+- Proper setup/teardown using actual class methods
+- Realistic edge cases based on actual class structure
+- Type-safe test generation with full TypeScript support
+
 ## Configuration
 
 TestPilot automatically detects:
 - **Testing Framework** (Vitest, Jest, Mocha) from package.json
 - **Import Paths** (calculates correct relative paths)
 - **TypeScript/JavaScript** project type
+- **Class Structures** (properties, methods, visibility)
 
 No configuration files needed!
 
@@ -198,6 +268,12 @@ ollama serve
 ### Import Path Issues
 - Ensure your project structure follows standard conventions
 - Check that source files are in expected locations relative to test output
+
+### AI Generates Non-Existent Methods
+This shouldn't happen with TestPilot's class context system, but if it does:
+- Check that your class is properly structured with TypeScript
+- Verify the class is exported correctly
+- The class context system prevents AI from hallucinating methods
 
 ## Contributing
 
