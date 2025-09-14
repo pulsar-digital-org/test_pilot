@@ -31,6 +31,7 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"@ax-llm/ax": "^14.0.23",
 		"commander": "^14.0.0",
 		"inquirer": "^12.9.4",
 		"lgz": "link:../../lgz",
