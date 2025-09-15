@@ -32,9 +32,10 @@
 	},
 	"dependencies": {
 		"@ax-llm/ax": "^14.0.23",
+		"@inquirer/prompts": "^7.8.6",
 		"commander": "^14.0.0",
 		"inquirer": "^12.9.4",
-		"lgz": "link:../../lgz",
+		"lgz": "^0.1.3",
 		"multi-llm-ts": "^4.4.4",
 		"tsx": "^4.20.5",
 		"typescript": "^5.9.2"
