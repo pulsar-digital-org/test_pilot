@@ -1,9 +1,16 @@
-/**
- * Code Analysis Module
- * Provides dependency analysis and code understanding capabilities
- */
+// Main API exports
+export { CodeAnalysis } from "./code-analysis";
+export { FunctionCallExtractor } from "./function-call-extractor";
+export { LSPClientManager } from "./lsp-client-manager";
 
-export * from './types';
-export * from './dependency-analyzer';
-export * from './typescript-analysis-parser';
-export * from '../file-system';
+// Type exports
+export type {
+	AnalysisConfig,
+	EnhancedFunctionInfo,
+	FunctionAnalysis,
+	FunctionCall,
+	InternalFunctionInfo,
+	LSPClientOptions,
+	LSPClientStats,
+	LSPDocumentation,
+} from "./types";

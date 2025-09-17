@@ -1,5 +1,5 @@
-import ts from 'typescript';
-import type { FunctionInfo, ParameterInfo } from '../../../types/core';
+import ts from "typescript";
+import type { FunctionInfo, ParameterInfo } from "../../../types/core";
 
 export interface ParseContext {
 	program: ts.Program;
@@ -12,15 +12,36 @@ export interface NodeExtractor<T extends ts.Node> {
 	extract(node: T, context: ParseContext): FunctionInfo | null;
 }
 
-export abstract class BaseExtractor<T extends ts.Node> implements NodeExtractor<T> {
+export abstract class BaseExtractor<T extends ts.Node>
+	implements NodeExtractor<T>
+{
 	abstract canHandle(node: ts.Node): node is T;
 	abstract extract(node: T, context: ParseContext): FunctionInfo | null;
 
-	protected getImplementation(sourceFile: ts.SourceFile, node: ts.Node): string {
+	protected getImplementation(
+		sourceFile: ts.SourceFile,
+		node: ts.Node,
+	): string {
 		return node.getText(sourceFile).trim();
 	}
 
-	protected getReturnType(ctx: ParseContext, node: ts.FunctionLikeDeclaration): string | undefined {
+	protected getStartPosition(
+		sourceFile: ts.SourceFile,
+		node: ts.Node,
+	): {
+		line: number;
+		column: number;
+	} {
+		const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+			node.getStart(sourceFile, false),
+		);
+		return { line: line + 1, column: character + 1 };
+	}
+
+	protected getReturnType(
+		ctx: ParseContext,
+		node: ts.FunctionLikeDeclaration,
+	): string | undefined {
 		// Explicit annotation first
 		if (node.type) {
 			return node.type.getText();
@@ -39,18 +60,28 @@ export abstract class BaseExtractor<T extends ts.Node> implements NodeExtractor<
 		return undefined;
 	}
 
-	protected getFunctionParameters(ctx: ParseContext, node: ts.FunctionLikeDeclaration): readonly ParameterInfo[] {
+	protected getFunctionParameters(
+		ctx: ParseContext,
+		node: ts.FunctionLikeDeclaration,
+	): readonly ParameterInfo[] {
 		return node.parameters.map((param) => {
 			const name = param.name.getText();
-			const type = param.type?.getText() ?? this.getParameterTypeFromTypeChecker(ctx, param);
+			const type =
+				param.type?.getText() ??
+				this.getParameterTypeFromTypeChecker(ctx, param);
 			const optional = !!param.questionToken;
-			const defaultValue = param.initializer ? param.initializer.getText() : undefined;
+			const defaultValue = param.initializer
+				? param.initializer.getText()
+				: undefined;
 
 			return { name, type, optional, defaultValue };
 		});
 	}
 
-	protected getParameterTypeFromTypeChecker(ctx: ParseContext, param: ts.ParameterDeclaration): string | undefined {
+	protected getParameterTypeFromTypeChecker(
+		ctx: ParseContext,
+		param: ts.ParameterDeclaration,
+	): string | undefined {
 		try {
 			const type = ctx.typeChecker.getTypeAtLocation(param);
 			return ctx.typeChecker.typeToString(type);
@@ -70,6 +101,6 @@ export abstract class BaseExtractor<T extends ts.Node> implements NodeExtractor<
 			}
 		}
 
-		return jsDocTexts.length > 0 ? jsDocTexts.join('\n') : undefined;
+		return jsDocTexts.length > 0 ? jsDocTexts.join("\n") : undefined;
 	}
 }

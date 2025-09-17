@@ -1,72 +1,81 @@
-import type { CodeLocation, Result } from '../../types/misc';
+import type { FunctionInfo } from "../discovery/types/core";
 
-export interface DependencyAnalysisOptions {
-    readonly maxDepth?: number;
-    readonly includeTypes?: boolean;
-    readonly includeExternalDependencies?: boolean;
-    readonly followImports?: boolean;
-}
-
+/**
+ * Represents a function call found in code
+ */
 export interface FunctionCall {
-    name: string;
-    location: CodeLocation;
-    arguments: readonly string[];
+	name: string;
+	line: number;
+	column: number;
+	type: "function" | "method" | "constructor" | "static";
+	receiver?: string; // For method calls, what object/class it's called on
 }
 
-export interface TypeReference {
-    name: string;
-    location: CodeLocation;
-    definition?: string;
-    properties?: readonly TypeProperty[];
+/**
+ * Information about external/internal functions not discovered in the codebase
+ */
+export interface InternalFunctionInfo {
+	name: string;
+	jsDoc: string;
+	line: number; // Absolute line number in the file
+	column: number; // Absolute column number in the file
+	parents: FunctionInfo[]; // Functions that use this internal function
+	lspDocumentation?: LSPDocumentation; // LSP documentation if available
 }
 
-export interface TypeProperty {
-    name: string;
-    type: string;
-    optional?: boolean;
+/**
+ * Analysis results for a function
+ */
+export interface FunctionAnalysis {
+	parents: FunctionInfo[]; // Functions that call this function
+	children: FunctionInfo[]; // Functions called by this function
+	functions: InternalFunctionInfo[]; // External/internal functions used
 }
 
-export interface ImportInfo {
-    modulePath: string;
-    importedName: string;
-    aliasName?: string;
-    isDefault?: boolean;
-    location: CodeLocation;
+/**
+ * Extended FunctionInfo with optional analysis
+ */
+export interface EnhancedFunctionInfo extends FunctionInfo {
+	analysis?: FunctionAnalysis;
 }
 
-export interface FunctionDependency {
-    name: string;
-    implementation: string;
-    location: CodeLocation;
-    calls: Record<string, FunctionDependency>;
-    types: Record<string, TypeReference>;
-    imports: readonly ImportInfo[];
-    depth: number;
+/**
+ * Configuration options for analysis
+ */
+export interface AnalysisConfig {
+	includeParentsAndChildren?: boolean;
+	includeInternalFunctions?: boolean;
+	includeLSPDocumentation?: boolean;
+	timeout?: number;
+	maxDepth?: number;
 }
 
-export interface DependencyAnalysisResult {
-    rootFunction: string;
-    dependencies: Record<string, FunctionDependency>;
-    maxDepthReached: boolean;
-    circularDependencies: readonly string[];
+/**
+ * LSP documentation result
+ */
+export interface LSPDocumentation {
+	signature?: string;
+	documentation?: string;
+	parameters?: Array<{
+		name: string;
+		documentation?: string;
+	}>;
 }
 
-export interface IFileSystem {
-    readFile(path: string): Promise<string>;
-    exists(path: string): Promise<boolean>;
-    resolvePath(basePath: string, relativePath: string): string;
+/**
+ * LSP client options
+ */
+export interface LSPClientOptions {
+	timeout?: number;
+	maxIdleTime?: number;
+	autoDispose?: boolean;
 }
 
-export interface IAnalysisParser {
-    extractFunctionCalls(parsedFile: unknown, functionName: string): Result<readonly FunctionCall[]>;
-    extractTypeReferences(parsedFile: unknown, functionName: string): Result<readonly TypeReference[]>;
-    extractImports(parsedFile: unknown): Result<readonly ImportInfo[]>;
-}
-
-export interface IDependencyAnalyzer {
-    analyzeDependencies(
-        filePath: string,
-        functionName: string,
-        options?: DependencyAnalysisOptions
-    ): Promise<Result<DependencyAnalysisResult>>;
+/**
+ * LSP client statistics
+ */
+export interface LSPClientStats {
+	isConnected: boolean;
+	openDocuments: number;
+	idleTime: number;
 }

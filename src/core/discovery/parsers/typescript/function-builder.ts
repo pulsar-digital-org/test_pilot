@@ -18,6 +18,12 @@ export class FunctionInfoBuilder {
 		return this;
 	}
 
+	withLocation(line: number, column: number): this {
+		this.info.startLine = line;
+		this.info.startColumn = column;
+		return this;
+	}
+
 	withParameters(parameters: readonly ParameterInfo[]): this {
 		this.info.parameters = parameters;
 		return this;
@@ -48,6 +54,8 @@ export class FunctionInfoBuilder {
 			!this.info.name ||
 			!this.info.filePath ||
 			!this.info.implementation ||
+			this.info.startLine === undefined ||
+			this.info.startColumn === undefined ||
 			!this.info.parameters ||
 			this.info.isAsync === undefined
 		) {
@@ -62,4 +70,3 @@ export class FunctionInfoBuilder {
 		return this;
 	}
 }
-

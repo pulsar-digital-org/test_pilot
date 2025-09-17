@@ -17,10 +17,13 @@ export class ArrowFunctionExtractor extends BaseExtractor<ts.ArrowFunction> {
 		const functionName = TypeGuards.getFunctionName(node);
 		if (functionName === "anonymous") return null;
 
+		const position = this.getStartPosition(context.sourceFile, node);
+
 		return new FunctionInfoBuilder()
 			.withName(functionName)
 			.withFilePath(context.sourceFile.fileName)
 			.withImplementation(this.getImplementation(context.sourceFile, node))
+			.withLocation(position.line, position.column)
 			.withParameters(this.getFunctionParameters(context, node))
 			.withReturnType(this.getReturnType(context, node))
 			.withAsync(TypeGuards.isAsyncFunction(node))
@@ -28,4 +31,3 @@ export class ArrowFunctionExtractor extends BaseExtractor<ts.ArrowFunction> {
 			.build();
 	}
 }
-

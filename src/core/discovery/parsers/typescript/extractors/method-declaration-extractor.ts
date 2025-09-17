@@ -22,10 +22,13 @@ export class MethodDeclarationExtractor extends BaseExtractor<ts.MethodDeclarati
 		const className = classInfo?.name;
 		const displayName = className ? `${className}.${methodName}` : methodName;
 
+		const position = this.getStartPosition(context.sourceFile, node);
+
 		const builder = new FunctionInfoBuilder()
 			.withName(displayName)
 			.withFilePath(context.sourceFile.fileName)
 			.withImplementation(this.getImplementation(context.sourceFile, node))
+			.withLocation(position.line, position.column)
 			.withParameters(this.getFunctionParameters(context, node))
 			.withReturnType(this.getReturnType(context, node))
 			.withAsync(TypeGuards.isAsyncFunction(node))
@@ -38,4 +41,3 @@ export class MethodDeclarationExtractor extends BaseExtractor<ts.MethodDeclarati
 		return builder.build();
 	}
 }
-

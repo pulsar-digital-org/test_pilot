@@ -9,6 +9,8 @@ export interface FunctionInfo {
 	name: string;
 	filePath: string;
 	implementation: string;
+	startLine: number;
+	startColumn: number;
 	parameters: readonly ParameterInfo[];
 	returnType: string | undefined;
 	isAsync: boolean;
@@ -63,4 +65,3 @@ export interface AnalysisOptions {
 	withTypeInference?: boolean;
 	maxDepth?: number;
 }
-
