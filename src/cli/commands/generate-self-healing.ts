@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { AIConnector, type AIProviders } from "@core/ai";
+import { CodeAnalysis, type EnhancedFunctionInfo } from "@core/analysis";
 import { createContextBuilder } from "@core/context";
-import { Discovery } from "@core/discovery";
+import { CodeDiscovery } from "@core/discovery";
 import { SelfHealingTestFlow } from "@core/generation";
 import { Command } from "commander";
 import { interactiveFunctionDiscovery, confirmTestGeneration } from "../interactive/generate.js";
@@ -95,8 +96,8 @@ export function createGenerateWithFlowCommand(): Command {
 						return;
 					}
 				} else {
-					const discovery = new Discovery(options.directory);
-					functions = await discovery.discover();
+					const discovery = new CodeDiscovery(options.directory);
+					functions = await discovery.findFunctions();
 				}
 
 				console.log(`🎯 Using self-healing flow with quality threshold: ${options.qualityThreshold}%`);
@@ -120,7 +121,29 @@ export function createGenerateWithFlowCommand(): Command {
 					enableLLMFixing: options.enableLlmFixing !== false,
 				});
 
-				const contextBuilder = createContextBuilder();
+				let analyzedFunctions: readonly EnhancedFunctionInfo[] = [];
+				if (functions.length > 0) {
+					const analysisEngine = new CodeAnalysis(functions)
+						.withParentsAndChildren()
+						.withInternalFunctions()
+						.withLSPDocumentation();
+
+					try {
+						analyzedFunctions = await analysisEngine.analyzeFunctions(functions);
+					} catch (analysisError) {
+						console.warn(
+							`⚠️  Analysis failed – continuing with discovery data only: ${analysisError instanceof Error ? analysisError.message : analysisError}`,
+						);
+					} finally {
+						await analysisEngine.dispose();
+					}
+				}
+
+				const contextBuilder = createContextBuilder({
+					functions,
+					analysis: analyzedFunctions,
+					defaultTestDirectory: options.output,
+				});
 
 				let successCount = 0;
 				let errorCount = 0;
@@ -150,7 +173,9 @@ export function createGenerateWithFlowCommand(): Command {
 						const outputPath = join(options.output, testFileName);
 
 						// Build context
-						const promptResult = contextBuilder.buildSystemPrompt([func], outputPath);
+						const promptResult = contextBuilder.buildForFunction(func, {
+							testFilePath: outputPath,
+						});
 						if (!promptResult.ok) {
 							console.error(
 								`❌ Failed to build context for ${func.name}: ${promptResult.error.message}`,

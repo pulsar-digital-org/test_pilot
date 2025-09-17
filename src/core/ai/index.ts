@@ -4,6 +4,4 @@
  */
 
 export * from "./ai-connector";
-export * from "./code-validator";
 export * from "./types";
-

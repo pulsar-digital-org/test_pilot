@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
-import { AIConnector, type AIProviders, CodeValidator } from "@core/ai";
+import { AIConnector, type AIProviders } from "@core/ai";
+import { CodeAnalysis, type EnhancedFunctionInfo } from "@core/analysis";
 import { createContextBuilder } from "@core/context";
-import { Discovery } from "@core/discovery";
+import { CodeDiscovery } from "@core/discovery";
 import { Command } from "commander";
-import { interactiveFunctionDiscovery, confirmTestGeneration } from "../interactive/generate.js";
 
 interface GenerateOptions {
 	recursive?: boolean;
@@ -57,25 +57,8 @@ export function createGenerateCommand(): Command {
 		)
 		.action(async (options: GenerateOptions) => {
 			try {
-				let functions;
-				
-				if (options.interactive) {
-					functions = await interactiveFunctionDiscovery(options.directory);
-					
-					if (functions.length === 0) {
-						console.log("👋 No functions selected. Exiting...");
-						return;
-					}
-					
-					const confirmed = await confirmTestGeneration(functions);
-					if (!confirmed) {
-						console.log("👋 Test generation cancelled. Exiting...");
-						return;
-					}
-				} else {
-					const discovery = new Discovery(options.directory);
-					functions = await discovery.discover();
-				}
+				const discovery = new CodeDiscovery(options.directory);
+				const functions = await discovery.findFunctions();
 
 				const aiConnector = new AIConnector({
 					provider: options.provider,
@@ -86,9 +69,32 @@ export function createGenerateCommand(): Command {
 					},
 				});
 
+				let analyzedFunctions: readonly EnhancedFunctionInfo[] = [];
+				if (functions.length > 0) {
+					const analysisEngine = new CodeAnalysis(functions)
+						.withParentsAndChildren()
+						.withInternalFunctions()
+						.withLSPDocumentation();
+
+					try {
+						analyzedFunctions =
+							await analysisEngine.analyzeFunctions(functions);
+					} catch (analysisError) {
+						console.warn(
+							`!  Analysis failed – continuing with discovery data only: ${analysisError instanceof Error ? analysisError.message : analysisError}`,
+						);
+					} finally {
+						await analysisEngine.dispose();
+					}
+				}
+
 				// Build context for each function and generate tests
-				const contextBuilder = createContextBuilder();
-				const codeValidator = new CodeValidator();
+				const contextBuilder = createContextBuilder({
+					functions,
+					analysis: analyzedFunctions,
+					defaultTestDirectory: options.output,
+				});
+
 				const maxRetries = parseInt(options.maxRetries, 10);
 
 				let successCount = 0;
@@ -106,16 +112,23 @@ export function createGenerateCommand(): Command {
 						`\n[${i + 1}/${functions.length}] Processing: ${func.name}()`,
 					);
 
+					const promptResult = contextBuilder.buildForFunction(func, {
+						testFilePath: "./__tests__/test.ts",
+					});
+
+					console.log(JSON.stringify(promptResult, null, 2));
+
+					return;
+
 					try {
 						// Create output file path
 						const testFileName = generateTestFileName(func.filePath, func.name);
 						const outputPath = join(options.output, testFileName);
 
-						// Build prompts for single function with import information
-						const promptResult = contextBuilder.buildSystemPrompt(
-							[func],
-							outputPath,
-						);
+						// Build prompts for single function with import and analysis context
+						const promptResult = contextBuilder.buildForFunction(func, {
+							testFilePath: outputPath,
+						});
 
 						if (!promptResult.ok) {
 							console.error(
@@ -154,39 +167,7 @@ export function createGenerateCommand(): Command {
 								`   📊 Tokens: ${aiResult.value.usage?.prompt_tokens || "unknown"}, ${aiResult.value.usage?.completion_tokens}`,
 							);
 
-							// Extract and validate code
-							const validationResult = codeValidator.extractAndValidate(
-								aiResult.value.content,
-							);
-
-							if (!validationResult.ok) {
-								console.error(
-									`❌ Validation error: ${validationResult.error.message}`,
-								);
-								break;
-							}
-
-							if (validationResult.value.isValid) {
-								validCode = validationResult.value.code;
-								console.log(
-									`   ✅ Generated valid TypeScript code on attempt ${attempt}`,
-								);
-							} else {
-								console.log(`   !  Attempt ${attempt} produced invalid code:`);
-								validationResult.value.errors.forEach((error) => {
-									console.log(`      - ${error}`);
-								});
-
-								if (attempt < maxRetries) {
-									console.log(`   🔄 Retrying with corrected prompt...`);
-									// Generate retry prompt with error feedback
-									currentPrompt = codeValidator.generateRetryPrompt(
-										promptResult.value.userPrompt,
-										validationResult.value.errors,
-									);
-								}
-							}
-
+							validCode = aiResult.value.content ?? "";
 							attempt++;
 						}
 
@@ -207,8 +188,6 @@ export function createGenerateCommand(): Command {
 
 						// Log code preview
 						console.log(`   🔍 Generated Code Preview:`);
-						const preview = validCode.substring(0, 200);
-						console.log(`   ${preview}${validCode.length > 200 ? "..." : ""}`);
 
 						successCount++;
 					} catch (error) {

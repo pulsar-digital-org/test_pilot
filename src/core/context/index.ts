@@ -1,6 +1,6 @@
 /**
  * Context Generation Module
- * Builds LLM system prompts from analyzed functions
+ * Builds LLM system prompts from discovery and analysis results
  */
 
 export * from "./context-builder";
@@ -8,12 +8,38 @@ export * from "./import-resolver";
 export * from "./prompt-generator";
 export * from "./types";
 
-// Export main factory function for creating context builder
+import type { EnhancedFunctionInfo } from "../analysis/types";
+import type { FunctionInfo } from "../../types/discovery";
+import type { ImportResolver } from "./import-resolver";
 import { ContextBuilder } from "./context-builder";
 import { PromptGenerator } from "./prompt-generator";
 
-export function createContextBuilder(): ContextBuilder {
-	const promptGenerator = new PromptGenerator();
-	return new ContextBuilder(promptGenerator);
+export interface ContextBuilderFactoryOptions {
+	readonly functions?: readonly FunctionInfo[];
+	readonly analysis?: readonly EnhancedFunctionInfo[];
+	readonly defaultTestDirectory?: string;
+	readonly importResolver?: ImportResolver;
 }
 
+export function createContextBuilder(
+	options: ContextBuilderFactoryOptions = {},
+): ContextBuilder {
+	const promptGenerator = new PromptGenerator();
+	const builder = new ContextBuilder(promptGenerator, {
+		importResolver: options.importResolver,
+	});
+
+	if (options.functions?.length) {
+		builder.withFunctions(options.functions);
+	}
+
+	if (options.analysis?.length) {
+		builder.withAnalysis(options.analysis);
+	}
+
+	if (options.defaultTestDirectory) {
+		builder.withDefaultTestDirectory(options.defaultTestDirectory);
+	}
+
+	return builder;
+}

@@ -4,7 +4,7 @@
  * This command must be ran before we actually generate tests
  */
 
-import { Discovery } from '@core/discovery';
+import { CodeDiscovery } from '@core/discovery';
 import { Command } from 'commander';
 
 export function createDiscoverCommand(): Command {
@@ -26,8 +26,13 @@ export function createDiscoverCommand(): Command {
     )
     .action(async (options) => {
       try {
-        const discovery = new Discovery(options.directory);
-        const functions = await discovery.discover();
+        const discovery = new CodeDiscovery(options.directory);
+        const functions = await discovery.findFunctions();
+
+        console.log(`\nDiscovered ${functions.length} functions:`);
+        functions.forEach((fn, index) => {
+          console.log(`${index + 1}. ${fn.name} (${fn.filePath})`);
+        });
 
         // Save these found functions into our temp directory and all necessary options
       } catch (err) {

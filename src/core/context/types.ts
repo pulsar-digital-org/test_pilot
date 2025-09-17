@@ -1,3 +1,4 @@
+import type { EnhancedFunctionInfo, FunctionAnalysis } from "../analysis/types";
 import type { FunctionInfo } from "../../types/discovery";
 import type { Result } from "../../types/misc";
 import type { ImportInfo } from "./import-resolver";
@@ -5,6 +6,7 @@ import type { ImportInfo } from "./import-resolver";
 export interface FunctionContext {
 	readonly function: FunctionInfo;
 	readonly imports?: ImportInfo;
+	readonly analysis?: FunctionAnalysis;
 }
 
 export interface SystemPromptContext {
@@ -24,13 +26,20 @@ export interface PromptMetadata {
 }
 
 export interface IContextBuilder {
+	withFunctions(functions: readonly FunctionInfo[]): IContextBuilder;
+	withAnalysis(functions: readonly EnhancedFunctionInfo[]): IContextBuilder;
+	withDefaultTestDirectory(directory: string): IContextBuilder;
 	buildFunctionContext(
 		func: FunctionInfo,
-		imports?: ImportInfo,
+		options?: BuildContextOptions,
 	): FunctionContext;
 	buildSystemPrompt(
 		functions: readonly FunctionInfo[],
-		testOutputPath?: string,
+		options?: BuildContextOptions | string,
+	): Result<GeneratedPrompt>;
+	buildForFunction(
+		func: FunctionInfo,
+		options?: BuildContextOptions,
 	): Result<GeneratedPrompt>;
 }
 
@@ -39,3 +48,7 @@ export interface IPromptGenerator {
 	generateUserPrompt(context: SystemPromptContext): Result<string>;
 }
 
+export interface BuildContextOptions {
+	readonly testFilePath?: string;
+	readonly testDirectory?: string;
+}

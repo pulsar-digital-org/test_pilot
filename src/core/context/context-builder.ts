@@ -1,9 +1,10 @@
-import { basename, dirname, extname } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
+import type { EnhancedFunctionInfo, FunctionAnalysis } from "../analysis/types";
 import type { FunctionInfo } from "../../types/discovery";
 import type { Result } from "../../types/misc";
-import type { ImportInfo } from "./import-resolver";
 import { ImportResolver } from "./import-resolver";
 import type {
+	BuildContextOptions,
 	FunctionContext,
 	GeneratedPrompt,
 	IContextBuilder,
@@ -13,15 +14,67 @@ import type {
 
 export class ContextBuilder implements IContextBuilder {
 	private readonly importResolver: ImportResolver;
+	private functions: readonly FunctionInfo[] = [];
+	private readonly functionsByKey = new Map<string, FunctionInfo>();
+	private readonly analysisByKey = new Map<string, FunctionAnalysis>();
+	private defaultTestDirectory?: string;
 
-	constructor(private readonly promptGenerator: IPromptGenerator) {
-		this.importResolver = new ImportResolver();
+	constructor(
+		private readonly promptGenerator: IPromptGenerator,
+		dependencies: { importResolver?: ImportResolver } = {},
+	) {
+		this.importResolver = dependencies.importResolver ?? new ImportResolver();
+	}
+
+	withFunctions(functions: readonly FunctionInfo[]): IContextBuilder {
+		this.functions = functions;
+		this.functionsByKey.clear();
+		for (const func of functions) {
+			this.functionsByKey.set(this.getFunctionKey(func), func);
+		}
+		return this;
+	}
+
+	withAnalysis(functions: readonly EnhancedFunctionInfo[]): IContextBuilder {
+		this.analysisByKey.clear();
+		for (const func of functions) {
+			const key = this.getFunctionKey(func);
+			if (!this.functionsByKey.has(key)) {
+				this.functionsByKey.set(key, func);
+			}
+			if (func.analysis) {
+				this.analysisByKey.set(key, func.analysis);
+			}
+		}
+		return this;
+	}
+
+	withDefaultTestDirectory(directory: string): IContextBuilder {
+		this.defaultTestDirectory = directory;
+		return this;
+	}
+
+	buildForFunction(
+		func: FunctionInfo,
+		options?: BuildContextOptions,
+	): Result<GeneratedPrompt> {
+		return this.buildSystemPrompt([func], options);
 	}
 
 	buildFunctionContext(
 		func: FunctionInfo,
-		imports?: ImportInfo,
+		options?: BuildContextOptions,
 	): FunctionContext {
+		const testFilePath = options?.testFilePath;
+		const imports = testFilePath
+			? this.importResolver.resolveImports(
+					func.filePath,
+					func.name,
+					testFilePath,
+				)
+			: undefined;
+		const analysis = this.analysisByKey.get(this.getFunctionKey(func));
+
 		const context: FunctionContext = {
 			function: func,
 		};
@@ -29,41 +82,36 @@ export class ContextBuilder implements IContextBuilder {
 		if (imports) {
 			context.imports = imports;
 		}
+		if (analysis) {
+			context.analysis = analysis;
+		}
 
 		return context;
 	}
 
 	buildSystemPrompt(
 		functions: readonly FunctionInfo[],
-		testOutputPath?: string,
+		optionsOrPath?: BuildContextOptions | string,
 	): Result<GeneratedPrompt> {
 		try {
-			// Build function contexts with import information
+			const options = this.normalizeOptions(optionsOrPath);
+			const treatFilePathAsExact = functions.length === 1;
+
 			const functionContexts = functions.map((func) => {
-				let imports: ImportInfo | undefined;
-
-				if (testOutputPath) {
-					// Create a test file path for this specific function
-					const testFileName = generateTestFileName(func.filePath, func.name);
-					const fullTestPath = testOutputPath.endsWith(testFileName)
-						? testOutputPath
-						: `${testOutputPath}/${testFileName}`;
-
-					imports = this.importResolver.resolveImports(
-						func.filePath,
-						func.name,
-						fullTestPath,
-					);
-				}
-
-				return this.buildFunctionContext(func, imports);
+				const testFilePath = this.resolveTestFilePath(
+					func,
+					options,
+					treatFilePathAsExact,
+				);
+				return this.buildFunctionContext(func, {
+					testFilePath,
+				});
 			});
 
 			const systemPromptContext: SystemPromptContext = {
 				functions: functionContexts,
 			};
 
-			// Generate prompts
 			const systemPromptResult =
 				this.promptGenerator.generateSystemPrompt(systemPromptContext);
 			const userPromptResult =
@@ -94,6 +142,55 @@ export class ContextBuilder implements IContextBuilder {
 			};
 		}
 	}
+
+	private normalizeOptions(
+		optionsOrPath?: BuildContextOptions | string,
+	): BuildContextOptions {
+		if (!optionsOrPath) {
+			return {};
+		}
+
+		if (typeof optionsOrPath === "string") {
+			return { testFilePath: optionsOrPath };
+		}
+
+		return optionsOrPath;
+	}
+
+	private resolveTestFilePath(
+		func: FunctionInfo,
+		options: BuildContextOptions,
+		treatAsExactFile: boolean,
+	): string | undefined {
+		const testFileName = generateTestFileName(func.filePath, func.name);
+
+		if (options.testFilePath) {
+			if (
+				treatAsExactFile &&
+				basename(options.testFilePath) === testFileName
+			) {
+				return options.testFilePath;
+			}
+
+			return join(options.testFilePath, testFileName);
+		}
+
+		if (options.testDirectory) {
+			return join(options.testDirectory, testFileName);
+		}
+
+		if (this.defaultTestDirectory) {
+			return join(this.defaultTestDirectory, testFileName);
+		}
+
+		return undefined;
+	}
+
+	private getFunctionKey(
+		func: Pick<FunctionInfo, "filePath" | "name">,
+	): string {
+		return `${func.filePath.replace(/\\/g, "/")}::${func.name}`;
+	}
 }
 
 // Helper function for generating test file names (shared with generate command)
@@ -102,7 +199,8 @@ function generateTestFileName(
 	functionName: string,
 ): string {
 	const baseName = basename(originalPath, extname(originalPath));
-	const dir = dirname(originalPath).replace(/^\.\//, "").replace(/\//g, "-");
+	const dir = dirname(originalPath)
+		.replace(/^\.\//, "")
+		.replace(/[\\/]/g, "-");
 	return `${dir ? `${dir}-` : ""}${baseName}-${functionName}.test.ts`;
 }
-

@@ -51,10 +51,12 @@ export class ImportResolver {
 		testOutputPath: string,
 		functionName: string,
 	): string {
+		const importTarget = this.getImportTarget(functionName);
+
 		// Check if project uses import aliases
 		const aliasPath = this.resolveWithAlias(functionFilePath);
 		if (aliasPath) {
-			return `import { ${functionName} } from '${aliasPath}';`;
+			return this.composeNamedImport(importTarget.importName, aliasPath);
 		}
 
 		// Fallback to relative path
@@ -69,7 +71,23 @@ export class ImportResolver {
 			: `./${importPath}`;
 
 		// Return the import statement
-		return `import { ${functionName} } from '${normalizedPath}';`;
+		return this.composeNamedImport(importTarget.importName, normalizedPath);
+	}
+
+	private composeNamedImport(importName: string, modulePath: string): string {
+		return `import { ${importName} } from '${modulePath}';`;
+	}
+
+	private getImportTarget(
+		functionName: string,
+	): { importName: string; isClassMethod: boolean } {
+		const classMethodMatch = functionName.match(/^([^\.]+)\.(.+)$/);
+		if (!classMethodMatch) {
+			return { importName: functionName, isClassMethod: false };
+		}
+
+		const [, className] = classMethodMatch;
+		return { importName: className, isClassMethod: true };
 	}
 
 	/**
@@ -210,4 +228,3 @@ export class ImportResolver {
 		return existsSync(tsConfigPath);
 	}
 }
-

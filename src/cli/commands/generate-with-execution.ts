@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { AIConnector, type AIProviders, CodeValidator } from "@core/ai";
+import { CodeAnalysis, type EnhancedFunctionInfo } from "@core/analysis";
 import { createContextBuilder } from "@core/context";
 import { Discovery } from "@core/discovery";
 import { TestExecutionEngine } from "@core/execution";
@@ -122,8 +123,30 @@ export function createGenerateWithExecutionCommand(): Command {
 					console.log("🔧 Test execution engine initialized");
 				}
 
+				let analyzedFunctions: readonly EnhancedFunctionInfo[] = [];
+				if (functions.length > 0) {
+					const analysisEngine = new CodeAnalysis(functions)
+						.withParentsAndChildren()
+						.withInternalFunctions()
+						.withLSPDocumentation();
+
+					try {
+						analyzedFunctions = await analysisEngine.analyzeFunctions(functions);
+					} catch (analysisError) {
+						console.warn(
+							`⚠️  Analysis failed – continuing with discovery data only: ${analysisError instanceof Error ? analysisError.message : analysisError}`,
+						);
+					} finally {
+						await analysisEngine.dispose();
+					}
+				}
+
 				// Build context for each function and generate tests
-				const contextBuilder = createContextBuilder();
+				const contextBuilder = createContextBuilder({
+					functions,
+					analysis: analyzedFunctions,
+					defaultTestDirectory: options.output,
+				});
 				const codeValidator = new CodeValidator();
 				const maxRetries = parseInt(options.maxRetries, 10);
 
@@ -153,11 +176,10 @@ export function createGenerateWithExecutionCommand(): Command {
 						const testFileName = generateTestFileName(func.filePath, func.name);
 						const outputPath = join(options.output, testFileName);
 
-						// Build prompts for single function with import information
-						const promptResult = contextBuilder.buildSystemPrompt(
-							[func],
-							outputPath,
-						);
+						// Build prompts for single function with import and analysis context
+						const promptResult = contextBuilder.buildForFunction(func, {
+							testFilePath: outputPath,
+						});
 
 						if (!promptResult.ok) {
 							console.error(

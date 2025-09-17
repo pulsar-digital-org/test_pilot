@@ -1,5 +1,9 @@
 import type { Result } from "../../types/misc";
-import type { IPromptGenerator, SystemPromptContext } from "./types";
+import type {
+	FunctionContext,
+	IPromptGenerator,
+	SystemPromptContext,
+} from "./types";
 
 export class PromptGenerator implements IPromptGenerator {
 	generateSystemPrompt(context: SystemPromptContext): Result<string> {
@@ -61,7 +65,8 @@ export class PromptGenerator implements IPromptGenerator {
 		return `# Test Generation System Prompt
 
 You are an expert TypeScript/JavaScript developer specializing in unit test generation.
-Your task is to generate high-quality, comprehensive tests based on the provided function analysis.`;
+Your task is to generate high-quality, comprehensive tests using the provided discovery and analysis context.
+Use the given call graph, usage data, and implementation details exactly as supplied—do not invent imports or behaviours that are not explicitly documented.`;
 	}
 
 	private generateFunctionsContext(context: SystemPromptContext): string {
@@ -152,8 +157,8 @@ Your task is to generate high-quality, comprehensive tests based on the provided
 				
 				lines.push("}");
 				lines.push("```");
-				
-				lines.push("\n**Note**: The above shows the complete class interface. You should test ONLY the target method, but you have access to all class properties and methods for proper testing.");
+
+				this.appendClassMethodGuidance(lines, funcContext);
 			}
 
 			// Parameters
@@ -191,9 +196,182 @@ Your task is to generate high-quality, comprehensive tests based on the provided
 			lines.push("```typescript");
 			lines.push(func.implementation || "No implementation available");
 			lines.push("```");
+
+			this.appendAnalysisSections(lines, funcContext);
 		});
 
 		return lines.join("\n");
+	}
+
+	private appendAnalysisSections(
+		lines: string[],
+		funcContext: FunctionContext,
+	): void {
+		const analysis = funcContext.analysis;
+		if (!analysis) {
+			return;
+		}
+
+		lines.push("\n**Direct Internal Calls**:");
+		if (analysis.children.length > 0) {
+			analysis.children.forEach((child) => {
+				lines.push(
+					`- ${this.describeFunctionReference(child.name, child.filePath)}`,
+				);
+			});
+		} else {
+			lines.push("- None detected");
+		}
+
+		lines.push("\n**External or Undiscovered Helpers**:");
+		if (analysis.functions.length > 0) {
+			analysis.functions.forEach((helper) => {
+				const detailParts: string[] = [];
+
+				if (helper.lspDocumentation?.signature) {
+					detailParts.push(`signature: ${helper.lspDocumentation.signature}`);
+				}
+
+				const documentation =
+					helper.lspDocumentation?.documentation ?? helper.jsDoc;
+				if (documentation) {
+					detailParts.push(
+						`doc: ${this.collapseWhitespace(documentation)}`,
+					);
+				}
+
+				if (helper.parents.length > 0) {
+					const parentList = helper.parents
+						.map((parent) =>
+							this.describeFunctionReference(parent.name, parent.filePath),
+						)
+						.join(", ");
+					detailParts.push(`referenced by: ${parentList}`);
+				}
+
+				const detailSuffix = detailParts.length
+					? ` — ${detailParts.join("; ")}`
+					: "";
+
+				lines.push(
+					`- ${helper.name} (line ${helper.line})${detailSuffix}`,
+				);
+			});
+		} else {
+			lines.push("- None detected");
+		}
+
+		lines.push("\n**Usage Across Codebase**:");
+		if (analysis.parents.length > 0) {
+			analysis.parents.forEach((parent) => {
+				lines.push(
+					`- ${this.describeFunctionReference(parent.name, parent.filePath)}`,
+				);
+			});
+		} else {
+			lines.push("- Not referenced by other discovered functions");
+		}
+	}
+
+	private describeFunctionReference(name: string, filePath: string): string {
+		return `\`${name}()\` (${filePath})`;
+	}
+
+	private collapseWhitespace(value: string): string {
+		return value.replace(/\s+/g, " ").trim();
+	}
+
+	private appendClassMethodGuidance(
+		lines: string[],
+		funcContext: FunctionContext,
+	): void {
+		const classMethod = this.extractClassMethodDetails(funcContext);
+		if (!classMethod) {
+			return;
+		}
+
+		lines.push("\n**Class Method Test Guidance**:");
+		if (classMethod.isStatic) {
+			lines.push(
+				`- Call \`${classMethod.className}.${classMethod.methodName}()\` directly without instantiating the class`,
+			);
+		} else {
+			const instanceVar = this.toInstanceVariable(classMethod.className);
+			lines.push(
+				`- Instantiate \`${classMethod.className}\` in a \`beforeEach\` hook and invoke \`${instanceVar}.${classMethod.methodName}()\` in each test`,
+			);
+			lines.push(
+				`- Reuse the same instance variable (\`${instanceVar}\`) across tests to keep setup consistent`,
+			);
+		}
+
+		lines.push("```typescript");
+		if (classMethod.isStatic) {
+			lines.push(`describe('${classMethod.className}.${classMethod.methodName}', () => {`);
+			lines.push("  test('should ...', () => {");
+			lines.push(
+				`    const result = ${classMethod.className}.${classMethod.methodName}(/* arrange inputs */);`,
+			);
+			lines.push("    expect(result).toBeDefined();");
+			lines.push("  });");
+			lines.push("});");
+		} else {
+			const instanceVar = this.toInstanceVariable(classMethod.className);
+			lines.push(`describe('${classMethod.className}.${classMethod.methodName}', () => {`);
+			lines.push(`  let ${instanceVar}: ${classMethod.className};`);
+			lines.push("");
+			lines.push("  beforeEach(() => {");
+			lines.push(`    ${instanceVar} = new ${classMethod.className}();`);
+			lines.push("  });");
+			lines.push("");
+			lines.push("  test('should ...', () => {");
+			lines.push(
+				`    const result = ${instanceVar}.${classMethod.methodName}(/* arrange inputs */);`,
+			);
+			lines.push("    expect(result).toBeDefined();");
+			lines.push("  });");
+			lines.push("});");
+		}
+		lines.push("```");
+	}
+
+	private extractClassMethodDetails(
+		funcContext: FunctionContext,
+	): { className: string; methodName: string; isStatic: boolean } | null {
+		const func = funcContext.function;
+		if (!func.classContext) {
+			return null;
+		}
+
+		const rawName = funcContext.function.name;
+		const methodName = this.extractMethodName(rawName);
+		const methodInfo = func.classContext.methods.find(
+			(method) => method.name === methodName,
+		);
+
+		return {
+			className: func.classContext.name,
+			methodName,
+			isStatic: methodInfo?.isStatic ?? false,
+		};
+	}
+
+	private extractMethodName(functionName: string): string {
+		const dotIndex = functionName.indexOf(".");
+		if (dotIndex === -1) {
+			return functionName;
+		}
+		return functionName.slice(dotIndex + 1);
+	}
+
+	private toInstanceVariable(className: string): string {
+		if (!className) {
+			return "instance";
+		}
+		if (className.length === 1) {
+			return className.toLowerCase();
+		}
+		return className.charAt(0).toLowerCase() + className.slice(1);
 	}
 
 	private generateGuidelines(): string {
@@ -227,4 +405,3 @@ Your task is to generate high-quality, comprehensive tests based on the provided
 IMPORTANT: Return ONLY the test code with the correct imports - no explanations or additional text.`;
 	}
 }
-
