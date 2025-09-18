@@ -339,6 +339,112 @@ This shouldn't happen with TestPilot's class context system, but if it does:
 - Verify the class is exported correctly
 - The class context system prevents AI from hallucinating methods
 
+## Roadmap
+
+### 🎯 Interactive CLI Experience
+Transform TestPilot into an intelligent, observant coding companion:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  ,_,                                                                       │
+│ (o o)   TEST PILOT — AI test generator                                     │
+│ ( - )   "Understands your code. Writes real tests."                        │
+│  " "                                                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ project:   ./                                                              │
+│ language:  autodetect                                                      │
+│ repo:      git main @ 4a9c3e7                                              │
+│                                                                            │
+│ [1] Analyze code      [2] Generate plan      [3] Run tests      [q] Quit   │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Planned Features:**
+- **Real-time Code Analysis** - Interactive discovery with live feedback
+- **Test Plan Review** - Preview and customize test strategies before generation
+- **Smart Test Execution** - Integrated test running with coverage insights
+- **Visual Progress** - Terminal-friendly progress bars and status updates
+- **Owl Personality** - Sharp, observant insights throughout the workflow
+
+### 🧠 Intelligent Test Analysis & Coaching
+
+Beyond test generation - become your testing mentor:
+
+#### **Failure Analysis**
+```
+(o o)  test failed: TaxService › retries on 502 with jitter
+( - )  root cause: mock timer needs advanceTimersToNextTimer() twice
+```
+
+**Smart Diagnostics:**
+- Parse test failures to identify root causes
+- Suggest specific fixes with code patches
+- Detect common testing anti-patterns
+- Recommend better mocking strategies
+
+#### **Test Quality Improvements**
+```
+(o o)  spotted improvement: this test could be more robust
+( - )  suggestion: add edge case for currency precision (0.001 vs 0.01)
+```
+
+**Enhancement Recommendations:**
+- **Coverage Gaps** - "Add test for the error path in line 42"
+- **Edge Cases** - "Consider testing with empty arrays, null values"
+- **Performance** - "This test could benefit from timing assertions"
+- **Reliability** - "Replace flaky sleep() with proper async/await"
+- **Maintainability** - "Extract this setup into a test helper"
+
+#### **Test Refactoring Assistant**
+```
+(o o)  detected duplicate setup across 5 test files
+( - )  suggestion: extract shared fixtures to tests/helpers/
+```
+
+**Code Quality:**
+- Identify duplicate test setup code
+- Suggest test helper extractions
+- Recommend better assertion libraries
+- Optimize slow-running tests
+- Improve test naming conventions
+
+#### **Continuous Learning**
+- Learn from your codebase patterns
+- Adapt suggestions to your testing style
+- Remember past fixes that worked
+- Suggest project-specific best practices
+
+### 🔄 Self-Healing Test Suite
+
+**Auto-Recovery:**
+- Detect when code changes break tests
+- Propose minimal test updates
+- Handle import path changes automatically
+- Update mocks when interfaces change
+
+**Proactive Monitoring:**
+- Watch for code changes that need new tests
+- Suggest test updates for refactored functions
+- Alert when test coverage drops below thresholds
+
+### 🎨 Enhanced User Experience
+
+**Terminal UI Improvements:**
+- Syntax-highlighted code previews
+- Interactive diff viewing
+- Expandable/collapsible sections
+- Keyboard shortcuts for power users
+
+**Integration Features:**
+- Git hooks for automatic test updates
+- IDE extensions for in-editor insights
+- CI/CD pipeline integration
+- Team collaboration features
+
+---
+
+*The owl sees all, suggests wisely, and never gets in your way.* 🦉
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.

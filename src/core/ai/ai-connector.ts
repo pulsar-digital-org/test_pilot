@@ -6,7 +6,7 @@ import {
 	Message,
 } from "multi-llm-ts";
 import type { Result } from "../../types/misc";
-import type { AIConnectorConfig } from "./types";
+import type { AIConnectorOptions } from "./types/core";
 
 export class AIConnector {
 	private readonly provider: LlmEngine;
@@ -15,7 +15,7 @@ export class AIConnector {
 		chatModel?: ChatModel;
 	};
 
-	constructor(config: AIConnectorConfig) {
+	constructor(config: AIConnectorOptions) {
 		this.provider = this.createProvider(config);
 		this.model = {
 			modelName: config.model,
@@ -40,7 +40,7 @@ export class AIConnector {
 		};
 	}
 
-	private createProvider(config: AIConnectorConfig): LlmEngine {
+	private createProvider(config: AIConnectorOptions): LlmEngine {
 		return igniteEngine(config.provider, config.engine);
 	}
 }
