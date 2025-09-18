@@ -61,6 +61,10 @@ export class TestGeneratorNode implements GeneratorNode {
 	private buildEnhancedPrompt(state: GenerationState): string {
 		let prompt = state.userPrompt;
 
+		if (state.objective) {
+			prompt += `\n\n**Current Focus:** ${state.objective}`;
+		}
+
 		// Add context from previous attempts
 		if (state.attempts > 1 && state.issues?.length) {
 			prompt += `\n\n**Previous attempt had these issues:**\n`;
@@ -70,35 +74,66 @@ export class TestGeneratorNode implements GeneratorNode {
 			prompt += `\n**Please address these issues in your new test generation.**`;
 		}
 
+		// Include validation feedback if previous attempt failed validation
+		if (state.validationResult && !state.validationResult.isValid) {
+			prompt += `\n\n**Validation issues to fix:**\n`;
+			state.validationResult.issues.forEach((issue, index) => {
+				prompt += `${index + 1}. ${issue}\n`;
+			});
+			if (state.validationResult.syntaxErrors?.length) {
+				prompt += `- Syntax errors: ${state.validationResult.syntaxErrors.join(", ")}\n`;
+			}
+			if (state.validationResult.importErrors?.length) {
+				prompt += `- Import issues: ${state.validationResult.importErrors.join(", ")}\n`;
+			}
+			prompt += `\n**Ensure the regenerated test compiles without these problems.**`;
+		}
+
 		// Add execution context if available
 		if (state.executionResult && !state.executionResult.success) {
 			prompt += `\n\n**Previous test execution failed with:**\n`;
 			if (state.executionResult.errors?.length) {
 				state.executionResult.errors.forEach((error, i) => {
-					prompt += `${i + 1}. ${error.type}: ${error.message}\n`;
+					const location =
+						error.line !== undefined
+							? ` (line ${error.line}${error.column ? `, col ${error.column}` : ""})`
+							: "";
+					prompt += `${i + 1}. ${error.type}${location}: ${error.message}\n`;
 				});
 			}
-			prompt += `\n**Please generate a test that avoids these execution errors.**`;
+			prompt += `\n**Generate a test that addresses these runtime failures.**`;
 		}
 
 		// Add quality improvement hints
 		if (state.qualityScore && state.qualityScore.overall < 70) {
 			prompt += `\n\n**Quality Improvement Needed:**\n`;
-			if (state.qualityScore.coverage < 70) {
-				prompt += `- Add more edge cases and boundary conditions\n`;
-			}
-			if (state.qualityScore.correctness < 70) {
-				prompt += `- Fix syntax and logic errors\n`;
-			}
-			if (state.qualityScore.completeness < 70) {
-				prompt += `- Add more comprehensive test scenarios\n`;
-			}
-			if (state.qualityScore.maintainability < 70) {
-				prompt += `- Improve code structure and readability\n`;
-			}
+			prompt += this.buildQualityRecommendations(state);
 		}
 
 		return prompt;
+	}
+
+	private buildQualityRecommendations(state: GenerationState): string {
+		const recommendations: string[] = [];
+		if (!state.qualityScore) {
+			return "";
+		}
+		if (state.qualityScore.coverage < 70) {
+			recommendations.push("Add more edge cases and boundary conditions");
+		}
+		if (state.qualityScore.correctness < 70) {
+			recommendations.push("Correct any syntax mistakes and ensure assertions reflect the implementation accurately");
+		}
+		if (state.qualityScore.completeness < 70) {
+			recommendations.push("Cover the remaining branches and error scenarios in the implementation");
+		}
+		if (state.qualityScore.maintainability < 70) {
+			recommendations.push("Improve structure, naming, and remove redundant setup in the tests");
+		}
+		if (!recommendations.length) {
+			return "";
+		}
+		return `- ${recommendations.join("\n- ")}\n`;
 	}
 
 	private extractCodeFromResponse(response: string): string | null {

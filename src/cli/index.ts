@@ -5,7 +5,7 @@ import packageJson from "../../package.json";
 // import { createDiscoverCommand } from './commands/discover';
 import { createGenerateCommand } from "./commands/generate";
 // import { createGenerateWithExecutionCommand } from './commands/generate-with-execution';
-// import { createGenerateWithFlowCommand } from './commands/generate-self-healing';
+import { createGenerateWithFlowCommand } from './commands/generate-self-healing';
 import { createInitCommand } from "./commands/init";
 import { CreateInitIntCommandInt } from "./interactive/init";
 
@@ -22,7 +22,7 @@ program.addCommand(createInitCommand());
 // // program.addCommand(createAnalyzeCommand());
 program.addCommand(createGenerateCommand());
 // program.addCommand(createGenerateWithExecutionCommand());
-// program.addCommand(createGenerateWithFlowCommand());
+program.addCommand(createGenerateWithFlowCommand());
 
 // Register interactive commands
 program.addCommand(CreateInitIntCommandInt());

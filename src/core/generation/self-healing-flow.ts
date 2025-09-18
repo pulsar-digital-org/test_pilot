@@ -1,8 +1,11 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { AxFlow, AxMockAIService, axCreateFlowTextLogger } from "@ax-llm/ax";
+
 import { TestGeneratorNode } from "./nodes/generator-node";
 import { TestValidatorNode } from "./nodes/validator-node";
 import { TestExecutorNode } from "./nodes/executor-node";
 import { TestScorerNode } from "./nodes/scorer-node";
-import { TestFixerNode } from "./nodes/fixer-node";
 
 import type { AIConnector } from "../ai";
 import type { FunctionInfo } from "../../types/discovery";
@@ -11,32 +14,63 @@ import type {
 	FlowResult,
 	FlowIteration,
 	QualityScore,
+	ValidationResult,
 } from "./types";
+import type { ExecutionResult } from "../execution/types";
 import type { Result } from "../../types/misc";
+
+interface FlowInputState {
+	readonly functionInfo: FunctionInfo;
+	readonly systemPrompt: string;
+	readonly userPrompt: string;
+	readonly outputPath: string;
+	readonly maxAttempts: number;
+	readonly qualityThreshold: number;
+}
+
+interface FlowWorkingState extends FlowInputState {
+	readonly startTime: number;
+	readonly attempts: number;
+	readonly issues: readonly string[];
+	readonly generatedTest?: string;
+	readonly validationResult?: ValidationResult;
+	readonly executionResult?: ExecutionResult;
+	readonly qualityScore?: QualityScore;
+	readonly iterations: readonly FlowIteration[];
+	readonly accepted: boolean;
+	readonly terminated: boolean;
+	readonly savedTo?: string;
+	readonly improvement?: string;
+	readonly executionTime: number;
+	readonly objective?: string;
+	readonly consecutiveValidationFailures: number;
+	readonly consecutiveExecutionFailures: number;
+}
 
 export interface SelfHealingFlowConfig {
 	readonly maxAttempts: number;
 	readonly qualityThreshold: number; // 0-100
-	readonly projectRoot: string;
-	readonly enableLLMScoring: boolean;
-	readonly enableLLMFixing: boolean;
+	readonly projectRoot?: string;
+	readonly enableFlowLogging?: boolean;
+	readonly maxValidationFailures?: number;
+	readonly maxExecutionFailures?: number;
 }
 
-const DEFAULT_CONFIG: SelfHealingFlowConfig = {
+const DEFAULT_CONFIG: Required<Omit<SelfHealingFlowConfig, "enableFlowLogging">> & Pick<SelfHealingFlowConfig, "enableFlowLogging"> = {
 	maxAttempts: 5,
 	qualityThreshold: 75,
 	projectRoot: process.cwd(),
-	enableLLMScoring: true,
-	enableLLMFixing: true,
+	enableFlowLogging: false,
+	maxValidationFailures: 3,
+	maxExecutionFailures: 3,
 };
 
 export class SelfHealingTestFlow {
-	private readonly config: SelfHealingFlowConfig;
+	private readonly config: typeof DEFAULT_CONFIG;
 	private readonly generator: TestGeneratorNode;
 	private readonly validator: TestValidatorNode;
 	private readonly executor: TestExecutorNode;
 	private readonly scorer: TestScorerNode;
-	private readonly fixer: TestFixerNode;
 
 	constructor(aiConnector: AIConnector, config: Partial<SelfHealingFlowConfig> = {}) {
 		this.config = { ...DEFAULT_CONFIG, ...config };
@@ -45,179 +79,61 @@ export class SelfHealingTestFlow {
 		this.validator = new TestValidatorNode();
 		this.executor = new TestExecutorNode(this.config.projectRoot);
 		this.scorer = new TestScorerNode(aiConnector);
-		this.fixer = new TestFixerNode(aiConnector);
 	}
 
 	async generate(
 		functionInfo: FunctionInfo,
 		systemPrompt: string,
 		userPrompt: string,
+		outputPath: string,
 	): Promise<Result<FlowResult>> {
 		const startTime = Date.now();
-		const iterations: FlowIteration[] = [];
-
-		let state: GenerationState = {
+		let state: FlowWorkingState = {
 			functionInfo,
 			systemPrompt,
 			userPrompt,
-			attempts: 0,
+			outputPath,
 			maxAttempts: this.config.maxAttempts,
+			qualityThreshold: this.config.qualityThreshold,
+			attempts: 0,
+			issues: [],
+			iterations: [],
+			accepted: false,
+			terminated: false,
+			executionTime: 0,
+			startTime,
+			consecutiveValidationFailures: 0,
+			consecutiveExecutionFailures: 0,
 		};
 
 		try {
-			// Main self-healing loop
-			while (state.attempts < this.config.maxAttempts) {
-				state = { ...state, attempts: state.attempts + 1 };
-				const iterationStart = Date.now();
-
-				console.log(`   🔄 Flow iteration ${state.attempts}/${this.config.maxAttempts}`);
-
-				// Step 1: Generate test
-				const generateResult = await this.generator.generate(state);
-				if (!generateResult.ok) {
-					console.log(`   ❌ Generation failed: ${generateResult.error.message}`);
-					continue;
-				}
-
-				const generatedTest = generateResult.value.code;
-				console.log(`   ✅ Generated test (confidence: ${Math.round(generateResult.value.confidence * 100)}%)`);
-
-				// Step 2: Validate test
-				const validateResult = await this.validator.validate(generatedTest);
-				if (!validateResult.ok) {
-					console.log(`   ❌ Validation error: ${validateResult.error.message}`);
-					continue;
-				}
-
-				const validation = validateResult.value;
-				console.log(`   📋 Validation: ${validation.isValid ? 'PASS' : 'FAIL'} (${validation.issues.length} issues)`);
-
-				// If validation fails, try to fix and continue
-				if (!validation.isValid) {
-					const fixResult = await this.tryFix(generatedTest, validation.issues, functionInfo);
-					if (fixResult.ok) {
-						console.log(`   🔧 Applied fixes, retrying...`);
-						state = { ...state, issues: validation.issues };
-
-						iterations.push({
-							attempt: state.attempts,
-							generatedCode: generatedTest,
-							validationResult: validation,
-							appliedFixes: ["Validation fixes applied"],
-							timestamp: Date.now() - iterationStart,
-						});
-						continue;
-					}
-				}
-
-				// Step 3: Execute test
-				const executeResult = await this.executor.execute(generatedTest, {
-					functionPath: functionInfo.filePath,
-					functionName: functionInfo.name,
-					projectRoot: this.config.projectRoot,
-				});
-
-				if (!executeResult.ok) {
-					console.log(`   ❌ Execution failed: ${executeResult.error.message}`);
-					iterations.push({
-						attempt: state.attempts,
-						generatedCode: generatedTest,
-						validationResult: validation,
-						timestamp: Date.now() - iterationStart,
-					});
-					continue;
-				}
-
-				const executionResult = executeResult.value;
-				console.log(`   🧪 Execution: ${executionResult.success ? 'PASS' : 'FAIL'} (${executionResult.executionTime}ms)`);
-
-				// Debug logging
-				if (!executionResult.success) {
-					console.log(`   🐛 Debug - Execution failed:`, {
-						errors: executionResult.errors?.length,
-						output: executionResult.output,
-						firstError: executionResult.errors?.[0]
-					});
-				}
-
-				// Step 4: Score test quality
-				let qualityScore: QualityScore | undefined;
-				if (this.config.enableLLMScoring) {
-					const scoreResult = await this.scorer.score(generatedTest, executionResult, functionInfo);
-					if (scoreResult.ok) {
-						qualityScore = scoreResult.value;
-						console.log(`   📊 Quality score: ${qualityScore.overall}/100 (${qualityScore.feedback.substring(0, 50)}...)`);
-					}
-				}
-
-				// Record this iteration
-				const iteration: FlowIteration = {
-					attempt: state.attempts,
-					generatedCode: generatedTest,
-					validationResult: validation,
-					executionResult,
-					qualityScore,
-					timestamp: Date.now() - iterationStart,
-				};
-				iterations.push(iteration);
-
-				// Step 5: Check if we should accept this test
-				const shouldAccept = this.shouldAcceptTest(validation, executionResult, qualityScore);
-
-				if (shouldAccept) {
-					console.log(`   ✅ Test accepted! Quality threshold met.`);
-
-					const result: FlowResult = {
-						success: true,
-						finalTest: generatedTest,
-						qualityScore,
-						attempts: state.attempts,
-						executionTime: Date.now() - startTime,
-						iterations,
-					};
-
-					return { ok: true, value: result };
-				}
-
-				// Step 6: If not acceptable, try to improve for next iteration
-				if (state.attempts < this.config.maxAttempts) {
-					console.log(`   📈 Quality below threshold, improving for next iteration...`);
-
-					// Collect issues for next iteration
-					const issues: string[] = [];
-					if (!validation.isValid) {
-						issues.push(...validation.issues);
-					}
-					if (!executionResult.success && executionResult.errors?.length) {
-						issues.push(...executionResult.errors.map(e => `${e.type}: ${e.message}`));
-					}
-					if (qualityScore && qualityScore.overall < this.config.qualityThreshold) {
-						issues.push(`Quality score ${qualityScore.overall} below threshold ${this.config.qualityThreshold}`);
-						issues.push(qualityScore.feedback);
-					}
-
-					state = {
-						...state,
-						generatedTest,
-						executionResult,
-						qualityScore,
-						issues,
-					};
-				}
+			// Manual iteration loop for reliable test generation with quality assurance
+			while (!state.accepted && !state.terminated && state.attempts < state.maxAttempts) {
+				// Run all steps sequentially
+				state = await this.runGenerationStep(state);
+				state = await this.runValidationStep(state);
+				state = await this.runExecutionStep(state);
+				state = await this.runScoringStep(state);
+				state = await this.applyDecisionStep(state);
 			}
 
-			// If we get here, we've exhausted all attempts
-			console.log(`   ⚠️  Max attempts reached without meeting quality threshold`);
+			const finalState = {
+				...state,
+				executionTime: Date.now() - startTime,
+			};
 
 			const result: FlowResult = {
-				success: false,
-				attempts: state.attempts,
-				executionTime: Date.now() - startTime,
-				iterations,
+				success: finalState.accepted,
+				finalTest: finalState.accepted ? finalState.generatedTest : undefined,
+				qualityScore: finalState.qualityScore,
+				attempts: finalState.attempts,
+				executionTime: finalState.executionTime,
+				iterations: finalState.iterations,
+				savedTo: finalState.savedTo,
+				improvement: finalState.accepted ? undefined : finalState.improvement,
 			};
 
 			return { ok: true, value: result };
-
 		} catch (error) {
 			return {
 				ok: false,
@@ -226,54 +142,421 @@ export class SelfHealingTestFlow {
 		}
 	}
 
-	private shouldAcceptTest(
-		validation: { isValid: boolean; issues: string[] },
-		executionResult: { success: boolean; errors?: unknown[] },
-		qualityScore?: QualityScore,
-	): boolean {
-		// Must pass validation
-		if (!validation.isValid) {
-			return false;
+	private createFlow(): AxFlow<FlowInputState, FlowWorkingState> {
+		const flow = AxFlow.create<FlowInputState, FlowWorkingState>({
+			logger: this.config.enableFlowLogging ? axCreateFlowTextLogger() : undefined,
+		});
+
+		return flow
+			.map((state) => this.initializeState(state))
+			.while(
+				(state) => {
+					const shouldContinue = !state.accepted && !state.terminated && state.attempts < state.maxAttempts;
+					console.log(`🔄 While condition: accepted=${state.accepted}, terminated=${state.terminated}, attempts=${state.attempts}/${state.maxAttempts} -> continue=${shouldContinue}`);
+					return shouldContinue;
+				}
+			)
+			.map(async (state) => {
+				console.log(`🚀 Starting iteration with attempts=${state.attempts}`);
+				// Run all steps sequentially within the while loop
+				let currentState = await this.runGenerationStep(state);
+				console.log(`✅ Generation: attempts=${currentState.attempts}, hasTest=${!!currentState.generatedTest}`);
+				currentState = await this.runValidationStep(currentState);
+				console.log(`✅ Validation: valid=${currentState.validationResult?.isValid}, terminated=${currentState.terminated}`);
+				currentState = await this.runExecutionStep(currentState);
+				console.log(`✅ Execution: success=${currentState.executionResult?.success}, terminated=${currentState.terminated}`);
+				currentState = await this.runScoringStep(currentState);
+				console.log(`✅ Scoring: score=${currentState.qualityScore?.overall}, terminated=${currentState.terminated}`);
+				currentState = await this.applyDecisionStep(currentState);
+				console.log(`✅ Decision: accepted=${currentState.accepted}, terminated=${currentState.terminated}, iterations=${currentState.iterations.length}`);
+				return currentState;
+			})
+			.endWhile()
+			.map((state) => ({
+				...state,
+				executionTime: Date.now() - state.startTime,
+			}))
+			.returns((state) => state);
+	}
+
+	private initializeState(state: FlowInputState): FlowWorkingState {
+		return {
+			...state,
+			attempts: 0,
+			issues: [],
+			iterations: [],
+			accepted: false,
+			terminated: false,
+			executionTime: 0,
+			startTime: Date.now(),
+			consecutiveValidationFailures: 0,
+			consecutiveExecutionFailures: 0,
+		};
+	}
+
+	private async runGenerationStep(state: FlowWorkingState): Promise<FlowWorkingState> {
+		if (state.terminated || state.accepted) {
+			return state;
 		}
 
-		// Must execute successfully
-		if (!executionResult.success) {
-			return false;
+		const nextAttempt = state.attempts + 1;
+		const objective = this.getObjectiveForAttempt(nextAttempt);
+		const generationState: GenerationState = {
+			functionInfo: state.functionInfo,
+			systemPrompt: state.systemPrompt,
+			userPrompt: state.userPrompt,
+			attempts: nextAttempt,
+			maxAttempts: state.maxAttempts,
+			issues: state.issues.length ? [...state.issues] : undefined,
+			qualityScore: state.qualityScore,
+			validationResult: state.validationResult,
+			executionResult: state.executionResult,
+			objective,
+		};
+
+		const generationResult = await this.generator.generate(generationState);
+		if (!generationResult.ok) {
+			const message = generationResult.error.message || "Unknown generation error";
+			return {
+				...state,
+				attempts: nextAttempt,
+				generatedTest: undefined,
+				qualityScore: undefined,
+				validationResult: undefined,
+				executionResult: undefined,
+				issues: [message],
+				improvement: message,
+				terminated: true,
+				objective,
+			};
 		}
 
-		// Must meet quality threshold if scoring is enabled
-		if (this.config.enableLLMScoring && qualityScore) {
-			if (qualityScore.overall < this.config.qualityThreshold) {
-				return false;
+		return {
+			...state,
+			attempts: nextAttempt,
+			generatedTest: generationResult.value.code,
+			qualityScore: undefined,
+			validationResult: undefined,
+			executionResult: undefined,
+			issues: [],
+			improvement: undefined,
+			terminated: false,
+			objective,
+		};
+	}
+
+	private async runValidationStep(state: FlowWorkingState): Promise<FlowWorkingState> {
+		if (state.terminated || state.accepted || !state.generatedTest) {
+			return state;
+		}
+
+		const validation = await this.validator.validate(state.generatedTest);
+		if (!validation.ok) {
+			const message = validation.error.message || "Validation engine failed";
+			return {
+				...state,
+				validationResult: undefined,
+				executionResult: undefined,
+				qualityScore: undefined,
+				issues: [message],
+				improvement: message,
+				terminated: true,
+			};
+		}
+
+		const validationResult = validation.value;
+		let issues = [...state.issues];
+		let improvement = state.improvement;
+		let terminated = state.terminated;
+		const consecutiveValidationFailures = validationResult.isValid
+			? 0
+			: state.consecutiveValidationFailures + 1;
+
+		if (!validationResult.isValid) {
+			const formatted = this.formatValidationIssues(validationResult);
+			issues = [...issues, ...formatted];
+			improvement = formatted.join("\n");
+			if (consecutiveValidationFailures >= this.config.maxValidationFailures) {
+				terminated = true;
 			}
 		}
 
-		return true;
+		return {
+			...state,
+			validationResult,
+			executionResult: undefined,
+			qualityScore: undefined,
+			issues,
+			improvement,
+			terminated,
+			consecutiveValidationFailures,
+		};
 	}
 
-	private async tryFix(
-		testCode: string,
-		issues: string[],
-		functionInfo: FunctionInfo,
-	): Promise<Result<string>> {
-		if (!this.config.enableLLMFixing) {
-			return { ok: false, error: new Error("LLM fixing is disabled") };
+	private async runExecutionStep(state: FlowWorkingState): Promise<FlowWorkingState> {
+		if (
+			state.terminated ||
+			state.accepted ||
+			!state.generatedTest ||
+			!state.validationResult ||
+			!state.validationResult.isValid
+		) {
+			return state;
 		}
 
-		return this.fixer.fix(testCode, issues, functionInfo);
+		const execution = await this.executor.execute(state.generatedTest, {
+			functionPath: state.functionInfo.filePath,
+			functionName: state.functionInfo.name,
+			projectRoot: this.config.projectRoot,
+		});
+
+		if (!execution.ok) {
+			const message = execution.error.message || "Test execution failed";
+			return {
+				...state,
+				executionResult: undefined,
+				qualityScore: undefined,
+				issues: [...state.issues, message],
+				improvement: message,
+				terminated: true,
+			};
+		}
+
+		const executionResult = execution.value;
+		let issues = [...state.issues];
+		let improvement = state.improvement;
+		let terminated = state.terminated;
+		const consecutiveExecutionFailures = executionResult.success
+			? 0
+			: state.consecutiveExecutionFailures + 1;
+
+		if (!executionResult.success) {
+			const formatted = this.formatExecutionErrors(executionResult);
+			issues = [...issues, ...formatted];
+			improvement = formatted.join("\n");
+			if (consecutiveExecutionFailures >= this.config.maxExecutionFailures) {
+				terminated = true;
+			}
+		}
+
+		return {
+			...state,
+			executionResult,
+			issues,
+			improvement,
+			terminated,
+			consecutiveExecutionFailures,
+		};
 	}
 
-	/**
-	 * Get flow configuration
-	 */
-	getConfig(): SelfHealingFlowConfig {
-		return { ...this.config };
+	private async runScoringStep(state: FlowWorkingState): Promise<FlowWorkingState> {
+		if (
+			state.terminated ||
+			state.accepted ||
+			!state.generatedTest ||
+			!state.validationResult ||
+			!state.validationResult.isValid
+		) {
+			return state;
+		}
+
+		if (!state.executionResult) {
+			// Skip scoring until we have an execution result
+			return state;
+		}
+
+		const scoreResult = await this.scorer.score(
+			state.generatedTest,
+			state.executionResult,
+			state.functionInfo,
+		);
+
+		if (!scoreResult.ok) {
+			const message = scoreResult.error.message || "Unable to score generated test";
+			return {
+				...state,
+				qualityScore: undefined,
+				issues: [...state.issues, message],
+				improvement: message,
+				terminated: true,
+			};
+		}
+
+		return {
+			...state,
+			qualityScore: scoreResult.value,
+		};
 	}
 
-	/**
-	 * Update flow configuration
-	 */
-	updateConfig(updates: Partial<SelfHealingFlowConfig>): void {
-		Object.assign(this.config, updates);
+	private async applyDecisionStep(state: FlowWorkingState): Promise<FlowWorkingState> {
+		const iterations: FlowIteration[] = [
+			...state.iterations,
+			{
+				attempt: state.attempts,
+				generatedCode: state.generatedTest,
+				validationResult: state.validationResult,
+				executionResult: state.executionResult,
+				qualityScore: state.qualityScore,
+				timestamp: Date.now() - state.startTime,
+				feedback: state.qualityScore?.feedback,
+			},
+		];
+
+		const improvementMessage = this.buildImprovementMessage(
+			state.qualityScore,
+			state.qualityThreshold,
+			state.validationResult,
+			state.executionResult,
+		);
+
+		const issuesForNextAttempt = improvementMessage
+			? improvementMessage
+					.split("\n")
+					.map((line) => line.trim())
+					.filter((line) => line.length > 0)
+			: [];
+
+		if (!state.generatedTest || !state.validationResult || !state.validationResult.isValid) {
+			return {
+				...state,
+				iterations,
+				issues: issuesForNextAttempt,
+				improvement: improvementMessage || state.improvement,
+			};
+		}
+
+		if (!state.executionResult || !state.executionResult.success) {
+			return {
+				...state,
+				iterations,
+				issues: issuesForNextAttempt,
+				improvement: improvementMessage || state.improvement,
+			};
+		}
+
+		if (!state.qualityScore) {
+			return {
+				...state,
+				iterations,
+				issues: issuesForNextAttempt,
+				improvement: improvementMessage || state.improvement,
+			};
+		}
+
+		if (state.qualityScore.overall >= state.qualityThreshold) {
+			const savedTo = await this.persistTest(state.outputPath, state.generatedTest);
+			return {
+				...state,
+				iterations,
+				accepted: true,
+				savedTo,
+				issues: [],
+				improvement: undefined,
+			};
+		}
+
+		return {
+			...state,
+			iterations,
+			issues: issuesForNextAttempt,
+			improvement: improvementMessage,
+		};
+	}
+
+	private async persistTest(outputPath: string, code: string): Promise<string> {
+		await mkdir(dirname(outputPath), { recursive: true });
+		await writeFile(outputPath, code, "utf8");
+		return outputPath;
+	}
+
+	private buildImprovementMessage(
+		score: QualityScore | undefined,
+		threshold: number,
+		validation?: ValidationResult,
+		execution?: ExecutionResult,
+	): string {
+		const hints: string[] = [];
+
+		if (validation && !validation.isValid) {
+			hints.push(...this.formatValidationIssues(validation));
+		}
+
+		if (execution && !execution.success) {
+			hints.push(...this.formatExecutionErrors(execution));
+		}
+
+		if (score) {
+			const coverageGap = score.coverage < threshold;
+			const correctnessGap = score.correctness < threshold;
+			const completenessGap = score.completeness < threshold;
+			const maintainabilityGap = score.maintainability < threshold;
+
+			if (score.feedback?.trim()) {
+				hints.push(score.feedback.trim());
+			}
+			if (coverageGap) {
+				hints.push("Expand coverage with boundary conditions and additional scenarios.");
+			}
+			if (correctnessGap) {
+				hints.push("Ensure expectations align with the implementation and correct any syntax issues.");
+			}
+			if (completenessGap) {
+				hints.push("Add more comprehensive tests for alternate branches and error handling.");
+			}
+			if (maintainabilityGap) {
+				hints.push("Refine test structure, naming, and reuse setup to keep tests maintainable.");
+			}
+		}
+
+		if (!hints.length) {
+			hints.push(
+				`Quality score${score ? ` ${score.overall}` : ""} is below the threshold ${threshold}. Strengthen assertions and add diverse scenarios.`,
+			);
+		}
+
+		return hints.join("\n");
+	}
+
+	private formatValidationIssues(validation: ValidationResult): string[] {
+		const messages: string[] = [];
+		if (validation.issues.length) {
+			validation.issues.forEach((issue, index) => {
+				messages.push(`Validation issue ${index + 1}: ${issue}`);
+			});
+		}
+		if (validation.syntaxErrors?.length) {
+			messages.push(`Syntax errors: ${validation.syntaxErrors.join(", ")}`);
+		}
+		if (validation.importErrors?.length) {
+			messages.push(`Import issues: ${validation.importErrors.join(", ")}`);
+		}
+		return messages.length ? messages : ["Fix validation issues detected in the previous attempt."];
+	}
+
+	private formatExecutionErrors(execution: ExecutionResult): string[] {
+		if (!execution.errors?.length) {
+			return ["Tests failed to run successfully. Investigate runtime behaviour and expectations."];
+		}
+
+		return execution.errors.map((error, index) => {
+			const location =
+				error.line !== undefined
+					? ` (line ${error.line}${error.column ? `, col ${error.column}` : ""})`
+					: "";
+			return `Execution issue ${index + 1}: ${error.type}${location} – ${error.message}`;
+		});
+	}
+
+	private getObjectiveForAttempt(attempt: number): string {
+		switch (attempt) {
+			case 1:
+				return "Start with a passing happy-path test that demonstrates core behaviour.";
+			case 2:
+				return "Add edge cases and boundary conditions covering unusual inputs and state.";
+			case 3:
+				return "Include error-handling scenarios and verify thrown errors or rejected promises.";
+			default:
+				return "Incorporate asynchronous flows, mocks/spies, and regression tests to maximise coverage.";
+		}
 	}
 }

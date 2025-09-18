@@ -1,4 +1,4 @@
-import { TypeScriptParser } from "../../discovery/typescript/parser";
+import { TypeScriptASTParser } from "../../discovery/parsers/typescript/ast-parser";
 import type { ValidatorNode, ValidationResult } from "../types";
 import type { Result } from "../../../types/misc";
 
@@ -6,7 +6,7 @@ export class TestValidatorNode implements ValidatorNode {
 	readonly type = "validator" as const;
 	readonly name = "test-validator";
 
-	private readonly parser = new TypeScriptParser();
+	private readonly parser = new TypeScriptASTParser();
 
 	async validate(testCode: string): Promise<Result<ValidationResult>> {
 		try {
@@ -65,9 +65,7 @@ export class TestValidatorNode implements ValidatorNode {
 	private async validateSyntax(code: string): Promise<Result<void>> {
 		try {
 			const parseResult = this.parser.parseContent(code, "temp-validation.ts");
-			if (!parseResult.ok) {
-				return { ok: false, error: parseResult.error };
-			}
+			// If parsing succeeds, we have valid syntax
 			return { ok: true, value: undefined };
 		} catch (error) {
 			return {

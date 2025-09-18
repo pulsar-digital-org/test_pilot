@@ -1,5 +1,5 @@
 import inquirer from "inquirer";
-import { Discovery } from "../../core/discovery/index.js";
+import { CodeDiscovery } from "../../core/discovery/index.js";
 import type { FunctionInfo } from "../../types/discovery.js";
 
 export interface FunctionChoice {
@@ -16,15 +16,15 @@ export async function interactiveFunctionDiscovery(
  Discovering functions in: ${directoryPath}`,
 	);
 
-	const discovery = new Discovery(directoryPath);
-	const functions = await discovery.discover();
+	const discovery = new CodeDiscovery(directoryPath);
+	const functions = await discovery.findFunctions();
 
 	if (functions.length === 0) {
 		console.log("L No functions found in the specified directory.");
 		return [];
 	}
 
-	console.log(`¿ Found ${functions.length} function(s)`);
+	console.log(`ï¿½ Found ${functions.length} function(s)`);
 
 	const choices: FunctionChoice[] = functions.map((func) => ({
 		name: `${func.name} (${func.filePath}) ${func.isAsync ? "[async]" : ""}${func.parameters.length > 0 ? ` - ${func.parameters.length} params` : ""}`,
@@ -48,7 +48,7 @@ export async function interactiveFunctionDiscovery(
 	]);
 
 	console.log(
-		`=Ý Selected ${selectedFunctions.length} function(s) for test generation`,
+		`=ï¿½ Selected ${selectedFunctions.length} function(s) for test generation`,
 	);
 
 	return selectedFunctions;

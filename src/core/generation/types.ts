@@ -9,10 +9,12 @@ export interface GenerationState {
 	readonly attempts: number;
 	readonly maxAttempts: number;
 	readonly generatedTest?: string;
+	readonly validationResult?: ValidationResult;
 	readonly executionResult?: ExecutionResult;
 	readonly qualityScore?: QualityScore;
 	readonly issues?: string[];
 	readonly confidence?: number;
+	readonly objective?: string;
 }
 
 export interface QualityScore {
@@ -80,6 +82,8 @@ export interface FlowResult {
 	readonly attempts: number;
 	readonly executionTime: number;
 	readonly iterations: readonly FlowIteration[];
+	readonly savedTo?: string;
+	readonly improvement?: string;
 }
 
 export interface FlowIteration {
@@ -90,4 +94,5 @@ export interface FlowIteration {
 	readonly qualityScore?: QualityScore;
 	readonly appliedFixes?: string[];
 	readonly timestamp: number;
+	readonly feedback?: string;
 }

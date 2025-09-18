@@ -1,9 +1,9 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, extname, join } from "node:path";
 import { AIConnector, type AIProviders } from "@core/ai";
 import { CodeAnalysis, type EnhancedFunctionInfo } from "@core/analysis";
 import { createContextBuilder } from "@core/context";
 import { CodeDiscovery } from "@core/discovery";
+import type { FunctionInfo } from "@core/discovery";
 import { SelfHealingTestFlow } from "@core/generation";
 import { Command } from "commander";
 import { interactiveFunctionDiscovery, confirmTestGeneration } from "../interactive/generate.js";
@@ -19,8 +19,6 @@ interface GenerateWithFlowOptions {
 	interactive?: boolean;
 	maxAttempts: string;
 	qualityThreshold: string;
-	enableLlmScoring?: boolean;
-	enableLlmFixing?: boolean;
 }
 
 /**
@@ -68,19 +66,9 @@ export function createGenerateWithFlowCommand(): Command {
 			"Quality score threshold (0-100)",
 			"75",
 		)
-		.option(
-			"--enable-llm-scoring",
-			"Enable LLM-based quality scoring",
-			true,
-		)
-		.option(
-			"--enable-llm-fixing",
-			"Enable LLM-based test fixing",
-			true,
-		)
 		.action(async (options: GenerateWithFlowOptions) => {
 			try {
-				let functions: Awaited<ReturnType<Discovery["discover"]>>;
+				let functions: FunctionInfo[];
 
 				if (options.interactive) {
 					functions = await interactiveFunctionDiscovery(options.directory);
@@ -111,14 +99,10 @@ export function createGenerateWithFlowCommand(): Command {
 					},
 				});
 
-				// Initialize self-healing flow
-				// Use process.cwd() as project root, not the specific directory/file
+				// Initialize self-healing flow with AxFlow orchestration
 				const flow = new SelfHealingTestFlow(aiConnector, {
 					maxAttempts: parseInt(options.maxAttempts, 10),
 					qualityThreshold: parseInt(options.qualityThreshold, 10),
-					projectRoot: process.cwd(), // Always use project root, not the target directory
-					enableLLMScoring: options.enableLlmScoring !== false,
-					enableLLMFixing: options.enableLlmFixing !== false,
 				});
 
 				let analyzedFunctions: readonly EnhancedFunctionInfo[] = [];
@@ -191,6 +175,7 @@ export function createGenerateWithFlowCommand(): Command {
 							func,
 							promptResult.value.systemPrompt,
 							promptResult.value.userPrompt,
+							outputPath,
 						);
 
 						if (!flowResult.ok) {
@@ -203,8 +188,14 @@ export function createGenerateWithFlowCommand(): Command {
 						flowStats.totalAttempts += result.attempts;
 						flowStats.totalTime += result.executionTime;
 
-						if (result.qualityScore) {
-							flowStats.qualityScores.push(result.qualityScore.overall);
+						const bestQuality = result.qualityScore
+							? result.qualityScore.overall
+							: result.iterations.reduce((best, iteration) => {
+								const value = iteration.qualityScore?.overall ?? -1;
+								return value > best ? value : best;
+							}, -1);
+						if (bestQuality >= 0) {
+							flowStats.qualityScores.push(bestQuality);
 						}
 
 						if (result.success) {
@@ -214,44 +205,49 @@ export function createGenerateWithFlowCommand(): Command {
 								flowStats.improvedThroughFlow++;
 							}
 
-							// Save the final test
-							mkdirSync(dirname(outputPath), { recursive: true });
-							writeFileSync(outputPath, result.finalTest!, "utf8");
-
 							console.log(`   ✅ Flow completed successfully!`);
-							console.log(`   📊 Quality: ${result.qualityScore?.overall || 'N/A'}/100`);
+							console.log(`   📊 Quality: ${result.qualityScore?.overall ?? 'N/A'}/100`);
 							console.log(`   🔄 Attempts: ${result.attempts}`);
 							console.log(`   ⏱️  Time: ${result.executionTime}ms`);
-							console.log(`   💾 Saved to: ${outputPath}`);
-
-							// Show flow iteration summary
-							console.log(`   📈 Flow iterations:`);
-							result.iterations.forEach((iteration, idx) => {
-								const status = iteration.executionResult?.success ? '✅' :
-											   iteration.validationResult?.isValid === false ? '📋' : '❌';
-								const quality = iteration.qualityScore?.overall ? `${iteration.qualityScore.overall}/100` : 'N/A';
-								console.log(`      ${idx + 1}. ${status} Quality: ${quality} (${iteration.timestamp}ms)`);
-							});
+							console.log(`   💾 Saved to: ${result.savedTo ?? outputPath}`);
 
 							successCount++;
 						} else {
-							console.log(`   ⚠️  Flow exhausted max attempts without reaching quality threshold`);
+							console.log(`   ⚠️  Flow exhausted max attempts without reaching the quality threshold.`);
 							console.log(`   🔄 Total attempts: ${result.attempts}`);
 							console.log(`   ⏱️  Total time: ${result.executionTime}ms`);
-
-							// Still save the best attempt
-							const bestIteration = result.iterations
-								.filter(i => i.generatedCode)
-								.sort((a, b) => (b.qualityScore?.overall || 0) - (a.qualityScore?.overall || 0))[0];
-
-							if (bestIteration?.generatedCode) {
-								mkdirSync(dirname(outputPath), { recursive: true });
-								writeFileSync(outputPath, bestIteration.generatedCode, "utf8");
-								console.log(`   💾 Saved best attempt to: ${outputPath}`);
+							if (result.improvement) {
+								console.log("   💡 Suggested improvements:");
+								result.improvement.split("\n").forEach((line) => {
+									if (line.trim().length > 0) {
+										console.log(`      - ${line.trim()}`);
+									}
+								});
 							}
 
-							errorCount++; // Count as error since it didn't meet threshold
+							errorCount++;
 						}
+
+						console.log(`   📈 Flow iterations:`);
+						result.iterations.forEach((iteration, idx) => {
+							const quality = iteration.qualityScore?.overall ?? "N/A";
+							const validationStatus = iteration.validationResult
+								? iteration.validationResult.isValid
+									? "validation ✅"
+									: "validation ❌"
+								: "validation —";
+							const executionStatus = iteration.executionResult
+								? iteration.executionResult.success
+									? "execution ✅"
+									: "execution ❌"
+								: "execution —";
+							const feedback = iteration.feedback
+								? ` – ${iteration.feedback.slice(0, 100)}${iteration.feedback.length > 100 ? "…" : ""}`
+								: "";
+							console.log(
+								`      ${idx + 1}. Quality: ${quality}/100 (${iteration.timestamp}ms) [${validationStatus} | ${executionStatus}]${feedback}`,
+							);
+						});
 
 					} catch (error) {
 						console.error(
@@ -267,9 +263,18 @@ export function createGenerateWithFlowCommand(): Command {
 				console.log(`✅ Successful: ${successCount}`);
 				console.log(`❌ Failed: ${errorCount}`);
 
+				const processedCount = successCount + errorCount;
 				console.log(`\n📊 Flow Statistics:`);
-				console.log(`   🎯 Average attempts per test: ${Math.round(flowStats.totalAttempts / functions.length * 10) / 10}`);
-				console.log(`   ⏱️  Average flow time: ${Math.round(flowStats.totalTime / functions.length)}ms`);
+				if (processedCount > 0) {
+					console.log(
+						`   🎯 Average attempts per test: ${Math.round((flowStats.totalAttempts / processedCount) * 10) / 10}`,
+					);
+					console.log(
+						`   ⏱️  Average flow time: ${Math.round(flowStats.totalTime / processedCount)}ms`,
+					);
+				} else {
+					console.log("   No functions were processed.");
+				}
 				console.log(`   🥇 Accepted on first try: ${flowStats.acceptedOnFirstTry}`);
 				console.log(`   📈 Improved through flow: ${flowStats.improvedThroughFlow}`);
 
