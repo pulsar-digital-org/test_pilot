@@ -1,6 +1,6 @@
 import inquirer from "inquirer";
-import { CodeDiscovery } from "../../core/discovery/index.js";
-import type { FunctionInfo } from "../../types/discovery.js";
+import { CodeDiscovery } from "@core/discovery";
+import type { FunctionInfo } from "@core/discovery";
 
 export interface FunctionChoice {
 	name: string;

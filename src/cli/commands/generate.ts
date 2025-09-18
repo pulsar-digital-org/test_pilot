@@ -6,6 +6,7 @@ import { CodeDiscovery } from "@core/discovery";
 import type { FunctionInfo } from "@core/discovery";
 import { SelfHealingTestFlow } from "@core/generation";
 import { Command } from "commander";
+import { interactiveFunctionDiscovery, confirmTestGeneration } from "../interactive/generate";
 
 interface GenerateOptions {
 	recursive?: boolean;
@@ -70,12 +71,32 @@ export function createGenerateCommand(): Command {
 			try {
 				console.log(`🎯 Using self-healing flow with quality threshold: ${options.qualityThreshold}%`);
 
-				const discovery = new CodeDiscovery(options.directory);
-				const functions = await discovery.findFunctions();
+				let functions: FunctionInfo[];
 
-				if (functions.length === 0) {
-					console.log("No functions found in the specified directory.");
-					return;
+				if (options.interactive) {
+					// Interactive mode: let user select functions
+					functions = await interactiveFunctionDiscovery(options.directory);
+
+					if (functions.length === 0) {
+						console.log("No functions selected for test generation.");
+						return;
+					}
+
+					// Confirm the selection
+					const confirmed = await confirmTestGeneration(functions);
+					if (!confirmed) {
+						console.log("Test generation cancelled.");
+						return;
+					}
+				} else {
+					// Non-interactive mode: discover all functions
+					const discovery = new CodeDiscovery(options.directory);
+					functions = await discovery.findFunctions();
+
+					if (functions.length === 0) {
+						console.log("No functions found in the specified directory.");
+						return;
+					}
 				}
 
 				const aiConnector = new AIConnector({
