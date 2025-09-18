@@ -58,10 +58,3 @@ export interface DiscoveryOptions {
 	includeArrowFunctions?: boolean;
 	includeClassMethods?: boolean;
 }
-
-export interface AnalysisOptions {
-	withDependencies?: boolean;
-	withUsageAnalysis?: boolean;
-	withTypeInference?: boolean;
-	maxDepth?: number;
-}

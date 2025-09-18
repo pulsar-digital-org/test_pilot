@@ -2,39 +2,30 @@
  * Initialize command for setting up test_pilot configuration interactively
  */
 
-import { stat, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { input } from "@inquirer/prompts";
-import { welcomeMessage } from "cli/utils";
 import { Command } from "commander";
 import path from "node:path";
 import fs from "node:fs";
 import { CodeDiscovery } from "@core/discovery";
 import { CodeAnalysis } from "@core/analysis";
+import { render } from "ink";
+import { Welcome } from "tui/welcome";
 
 export function CreateInitIntCommandInt(): Command {
 	return new Command("initint")
 		.description("Initialize test_pilot configuration")
 		.action(async (_options, _command) => {
-			welcomeMessage();
+			const rootDir = process.cwd();
+			const configDir = path.join(rootDir, ".test_pilot");
 
-			const rootDir = await input({
-				message: "Root directory of the project?",
-				default: process.cwd(),
-				validate: (value) => {
-					try {
-						// Check if the path exists, either a directory or a file
-						const stats = statSync(value);
-						return stats.isDirectory() || stats.isFile();
-					} catch (_err) {
-						return false;
-					}
-				},
-			});
+			const config = {
+				rootDir,
+				configDir,
+			};
 
-			const configDir = await input({
-				message: "Where do you want to save test pilots configuration files?",
-				default: path.join(rootDir, ".test_pilot"),
-			});
+			const { unmount, waitUntilExit } = render(<Welcome config={config} />);
+			await waitUntilExit().catch(() => unmount());
 
 			// if the directory exists we can try to load from it
 			if (fs.existsSync(configDir)) {

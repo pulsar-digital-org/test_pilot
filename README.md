@@ -2,6 +2,57 @@
 
 An AI-powered test generation tool that understands your code and creates intelligent, comprehensive test suites. No more boilerplate - let AI analyze your functions and routes to generate meaningful tests with edge cases, error handling, and real-world scenarios.
 
+Currently we only support typescript with possible future language agnostic implementation.
+
+## Modules
+
+The whole project is done in a modular system design so that it is easier to use just the parts you need, and easier to understand.
+
+### Discovery
+
+The Discovery module is the core engine for analyzing TypeScript and JavaScript codebases to extract detailed function and class information. Built on the official TypeScript Compiler API, it provides comprehensive static analysis capabilities for intelligent test generation.
+
+**Key Features:**
+
+- **Function Analysis** - Extracts function declarations, arrow functions, anonymous functions, and class methods with complete signature information including parameters, return types, JSDoc comments, and implementation details
+- **Class Context Resolution** - Analyzes class structures to capture properties, methods, visibility modifiers, and inheritance relationships, providing complete interface context to prevent AI hallucination during test generation
+- **Smart Pattern Matching** - Supports configurable include/exclude patterns for selective code discovery with fine-grained control over what gets analyzed
+- **Multiple Function Types** - Handles function declarations, arrow functions, anonymous functions, async functions, and class methods with proper type information extraction
+- **Rich Metadata Extraction** - Captures JSDoc documentation, parameter types, optional parameters, default values, return types, and source location information
+- **Parser Registry System** - Extensible architecture supporting multiple language parsers with TypeScript as the primary implementation
+
+**Technical Implementation:**
+
+- Utilizes TypeScript Compiler API for robust AST parsing and type analysis
+- Implements visitor pattern for efficient AST traversal and data extraction
+- Provides fluent API for configuration with method chaining support
+- Handles parse errors gracefully while continuing analysis of remaining files
+- Extracts complete class interfaces while maintaining method-level granularity for targeted test generation
+
+### Analysis
+
+`...`
+
+### Context
+
+`...`
+
+### Execution
+
+`...`
+
+### AI
+
+`...`
+
+### Config
+
+`...`
+
+### Generation
+
+`...`
+
 ## Features
 
 🔍 **Smart Function Discovery** - Analyzes TypeScript/JavaScript files to extract functions with full signature information  
@@ -52,6 +103,7 @@ Options:
 ```
 
 **Example:**
+
 ```bash
 test-pilot discover -d src/utils -r
 ```
@@ -106,6 +158,7 @@ test-pilot generate -m codellama:7b
 ```
 
 **Recommended Models:**
+
 - `codellama:7b` - Fast, good for simple functions
 - `codellama:13b` - Better quality, slower
 - `deepseek-coder` - Excellent code understanding
@@ -123,6 +176,7 @@ test-pilot generate -p mistral -m mistral-small -k $MISTRAL_API_KEY
 ```
 
 **Available Models:**
+
 - `mistral-tiny` - Fastest, cheapest
 - `mistral-small` - Good balance
 - `mistral-medium` - Highest quality
@@ -142,6 +196,7 @@ test-pilot generate -p mistral -m mistral-small -k $MISTRAL_API_KEY
 TestPilot generates clean, well-structured tests with intelligent context awareness:
 
 ### For Regular Functions
+
 ```typescript
 // Auto-generated imports based on your testing framework
 import { describe, test, expect } from 'vitest';
@@ -166,6 +221,7 @@ describe('calculateTotal', () => {
 ```
 
 ### For Class Methods (with Full Context Awareness)
+
 ```typescript
 // TestPilot provides complete class interface to AI
 // AI sees: class Calculator { private history: number[]; add(); subtract(); getHistory(); clearHistory(); }
@@ -208,6 +264,7 @@ describe('Calculator.add', () => {
 ## What Makes TestPilot Special
 
 ### 🎯 **Zero AI Hallucination for Classes**
+
 Traditional AI test generators often hallucinate methods that don't exist. TestPilot solves this by providing the AI with complete class interfaces while only revealing the implementation for the method being tested.
 
 ```typescript
@@ -225,6 +282,7 @@ class Calculator {
 ```
 
 ### 🧠 **Context-Aware Test Generation**
+
 - Tests class method interactions (e.g., `add()` affects `getHistory()`)
 - Proper setup/teardown using actual class methods
 - Realistic edge cases based on actual class structure
@@ -233,6 +291,7 @@ class Calculator {
 ## Configuration
 
 TestPilot automatically detects:
+
 - **Testing Framework** (Vitest, Jest, Mocha) from package.json
 - **Import Paths** (calculates correct relative paths)
 - **TypeScript/JavaScript** project type
@@ -252,6 +311,7 @@ No configuration files needed!
 ## Troubleshooting
 
 ### Ollama Connection Issues
+
 ```bash
 # Check if Ollama is running
 curl http://localhost:11434/api/tags
@@ -261,16 +321,20 @@ ollama serve
 ```
 
 ### Invalid Generated Code
+
 - Increase `--max-retries` for complex functions
 - Try a larger model (`codellama:13b` vs `codellama:7b`)
 - Check if function signatures are too complex
 
 ### Import Path Issues
+
 - Ensure your project structure follows standard conventions
 - Check that source files are in expected locations relative to test output
 
 ### AI Generates Non-Existent Methods
+
 This shouldn't happen with TestPilot's class context system, but if it does:
+
 - Check that your class is properly structured with TypeScript
 - Verify the class is exported correctly
 - The class context system prevents AI from hallucinating methods

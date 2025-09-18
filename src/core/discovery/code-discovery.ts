@@ -5,11 +5,7 @@ import {
 	type IFileSystemService,
 } from "./services/file-system";
 import { ParserRegistry } from "./services/parser-registry";
-import type {
-	AnalysisOptions,
-	DiscoveryOptions,
-	FunctionInfo,
-} from "./types/core";
+import type { DiscoveryOptions, FunctionInfo } from "./types/core";
 
 export class CodeDiscovery {
 	private options: Required<DiscoveryOptions>;
@@ -76,15 +72,6 @@ export class CodeDiscovery {
 	withClassMethods(include = true): this {
 		this.options.includeClassMethods = include;
 		this.recreateParserRegistry();
-		return this;
-	}
-
-	/**
-	 * Enable enhanced analysis (placeholder for future enhancement)
-	 */
-	withAnalysis(_options: AnalysisOptions = {}): this {
-		// This is where we would enable enhanced analysis features
-		// For now, just return this to maintain fluent interface
 		return this;
 	}
 
@@ -172,4 +159,3 @@ export class CodeDiscovery {
 		this.parserRegistry = new ParserRegistry(this.options);
 	}
 }
-
